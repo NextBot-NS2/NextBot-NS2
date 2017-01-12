@@ -1,0 +1,8 @@
+name        = "Next Bot"
+source_dir  = "source"
+output_dir  = "output"
+description = [=[]=]
+image       = "preview.jpg"
+tag_modtype = ""
+tag_support = "Must be run on Server"
+publish_id = "3005f5ea"
