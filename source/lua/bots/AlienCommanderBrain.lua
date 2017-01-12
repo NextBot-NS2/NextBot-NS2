@@ -40,7 +40,7 @@ function AlienCommanderBrain:GetSenses()
 end
 
 function AlienCommanderBrain:Update(bot, move)
-    PROFILE("AlienCommanderBrain:Update")
+    PROFILE("NAlienCommanderBrain:Update")
 
     CommanderBrain.Update(self, bot, move)
 

@@ -1,4 +1,3 @@
-
 Script.Load("lua/bots/BotUtils.lua")
 Script.Load("lua/bots/BotDebug.lua")
 Script.Load("lua/bots/ManyToOne.lua")
@@ -57,7 +56,7 @@ local function UpdateMemory(mem, ent, fromSound)
 
     -- this works as long as this is run as part of the server, as we will always have full
     -- information about entities.
-    if ent ~= nil and ent.GetMapBlipInfo and (heard or (ent.GetIsSighted and ent:GetIsSighted())) then
+    if ent ~= nil and ent.GetMapBlipInfo and (fromSound or EntityIsVisible(ent)) then
         local success, blipType, blipTeam, isAttacked, isParasited = ent:GetMapBlipInfo()
         mem.btype = blipType
         mem.lastSeenPos = ent:GetOrigin()
@@ -115,6 +114,12 @@ function TeamBrain:Initialize(label, teamNumber)
     self.assignments = ManyToOne()
     self.assignments:Initialize()
 
+    self.botsToLeaders = ManyToOne()
+    self.botsToLeaders:Initialize()
+
+    self.toTeammatePathPoints = {}
+    self.teammateCalcTickrate = 1000
+    self.prevTeammatePathCalcTime = Shared.GetTime()
 end
 
 function TeamBrain:Reset()
@@ -175,7 +180,7 @@ end
 
 
 function TeamBrain:UpdateMemoryOfEntity( ent, fromSound)
-    PROFILE("TeamBrain:UpdateMemoryOfEntity")
+    PROFILE("NTeamBrain:UpdateMemoryOfEntity")
 
     local entId = ent:GetId()
     local mem = self.entId2memory[ entId ]
@@ -183,7 +188,7 @@ function TeamBrain:UpdateMemoryOfEntity( ent, fromSound)
         mem = CreateMemory(ent)
         self.entId2memory[ entId ] = mem
         if ent:isa("Player") and gBotDebug:Get("spam") then
-            Log("Brain %d detected %s from %s", self.teamNumber, ent, fromSound and "sound" or "sight")
+            DebugPrint("Brain %d detected %s from %s", self.teamNumber, ent, fromSound and "sound" or "sight")
         end
     end
     UpdateMemory( mem, ent, fromSound )
@@ -205,10 +210,10 @@ function TeamBrain:GetIsSoundAudible(sound)
 end
 
 function TeamBrain:Update(dt)
-    PROFILE("TeamBrain:Update")
+    PROFILE("NTeamBrain:Update")
 
     if gBotDebug:Get("spam") then
-        Log("TeamBrain:Update")
+        DebugPrint("TeamBrain:Update")
     end
 
     local currBlips = GetSightedMapBlips(nil, GetEnemyTeamNumber(self.teamNumber))
@@ -232,10 +237,34 @@ function TeamBrain:Update(dt)
             end
             return false
         end,
-        GetEnemyTeamNumber(self.teamNumber))
+        GetEnemyTeamNumber(self.teamNumber)
+    )
     
     for _, sound in ipairs(enemySounds) do
         self:UpdateMemoryOfEntity(sound:GetParent(), true)      
+    end
+
+    local updateEntities = {}
+    
+    local team = GetGamerules():GetTeam(self.teamNumber)
+    assert(team)
+
+    local function count(player)
+        local client = player:GetClient()
+        if client and (player:GetTeamNumber() == self.teamNumber) and player:GetIsAlive() then
+          local targetEntities = GetPotentialTargetEntities(player)
+          for index = 1, #targetEntities do
+            local entity = targetEntities[index]
+            local entityId = entity:GetId()
+            updateEntities[entityId] = entity
+          end        
+        end
+    end
+    
+    team:ForEachPlayer(count)
+    
+    for entityid, entity in pairs(updateEntities) do
+      self:UpdateMemoryOfEntity(entity)
     end
 
     -- remove entId2memory that no longer exist
@@ -301,7 +330,7 @@ function TeamBrain:Update(dt)
 
     for _,id in ipairs(removedIds) do
         if gBotDebug:Get("spam") then
-            Log("... remove memory of %s", id)
+            DebugPrint("... remove memory of %s", id)
         end
         self.entId2memory[id] = nil
     end
@@ -311,6 +340,14 @@ function TeamBrain:Update(dt)
     if gBotDebug:Get("debugall") or gBotDebug:Get("debugteam") then
         self:DebugDraw()
     end
+
+
+    
+--    for _, bot in ipairs(gServerBots) do
+--        if bot:GetTeamNumber() == teamNumber then
+--            botNum = botNum + 1
+--        end
+--    end
 
 end
 
@@ -330,7 +367,6 @@ function TeamBrain:AssignBotToMemory( bot, mem )
     local playerId = player:GetId()
 
     self.assignments:Assign( playerId, mem.entId )
-
 end
 
 function TeamBrain:AssignBotToEntity( bot, entId )
@@ -342,13 +378,25 @@ function TeamBrain:AssignBotToEntity( bot, entId )
 
 end
 
-function TeamBrain:UnassignBot( bot )
+function TeamBrain:UnassignBotFromAll(bot)
+    local player = bot:GetPlayer()
+    assert(player ~= nil)
+    local botId = player:GetId()    
+    self:UnassignBotById(botId)
+    self:UnassignBotByIdFromFollowers(botId)
+    self:UnassignBotByIdFromLeader(botId)
+end
 
+function TeamBrain:UnassignBot( bot )
     local player = bot:GetPlayer()
     assert(player ~= nil)
     local playerId = player:GetId()
+    self:UnassignBotById(playerId)
+end
 
-    self.assignments:Unassign(playerId)
+function TeamBrain:UnassignBotById( botId )
+
+    self.assignments:Unassign(botId)
 
 end
 
@@ -375,12 +423,38 @@ function TeamBrain:GetNumAssignedToEntity( entId, countsFunc )
 
 end
 
-function TeamBrain:GetNumOthersAssignedToEntity( entId, exceptBot )
+function TeamBrain:GetNumOthersAssignedToEntity( entId, exceptBotId )
 
     return self:GetNumAssignedToEntity( entId, function(otherId)
-            return otherId ~= exceptBot:GetPlayer():GetId()
+            return otherId ~= exceptBotId
             end)
 
+end
+
+function TeamBrain:AssignBotIdToLeaderId(botId, leaderId)
+  self.botsToLeaders:Assign(botId, leaderId)
+end
+
+function TeamBrain:GetBotLeaderId(botId)
+  return self.botsToLeaders.item2group[botId]
+end
+
+function TeamBrain:GetBotIdFollowsLeaderId(botId, leaderId)
+  return self.botsToLeaders:GetIsAssignedTo(botId, leaderId)
+end
+
+function TeamBrain:UnassignBotByIdFromFollowers(botId)
+  self.botsToLeaders:Unassign(botId)
+end
+
+function TeamBrain:UnassignBotByIdFromLeader(botId)
+  self.botsToLeaders:RemoveGroup(botId)
+end
+
+function TeamBrain:GetNumOthersAssignedToLeaderId(leaderId, exceptBotId )
+    return self:GetNumAssignedToEntity( leaderId, function(otherId)
+            return otherId ~= exceptBotId
+            end)
 end
 
 function TeamBrain:DebugDump()

@@ -1,5 +1,9 @@
+Script.Load("lua/bots/BotDebug.lua")
+Script.Load("lua/bots/BotUtils.lua")
 Script.Load("lua/bots/CommonActions.lua")
 Script.Load("lua/bots/BrainSenses.lua")
+Script.Load("lua/bots/TeamBrain.lua")
+Script.Load("lua/bots/BotAim.lua")
 
 local kHiveBuildDist = 15.0
 

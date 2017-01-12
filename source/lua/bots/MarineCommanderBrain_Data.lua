@@ -1,5 +1,8 @@
+Script.Load("lua/bots/BotDebug.lua")
+Script.Load("lua/bots/BotUtils.lua")
 Script.Load("lua/bots/CommonActions.lua")
 Script.Load("lua/bots/BrainSenses.lua")
+Script.Load("lua/bots/TeamBrain.lua")
 
 local kStationBuildDist = 15.0
 

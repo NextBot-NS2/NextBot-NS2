@@ -11,7 +11,7 @@ function GorgeBrain:Initialize()
 
     PlayerBrain.Initialize(self)
     self.senses = CreateGorgeBrainSenses()
-
+    -- self.preferences = CreateGorgeBrainReferences()
 end
 
 function GorgeBrain:GetExpectedPlayerClass()

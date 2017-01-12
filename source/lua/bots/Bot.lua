@@ -7,6 +7,8 @@
 --
 --=============================================================================
 
+Print("============== INITIALIZING NEXTBOT REV 6 (2016-12-28) ==============")
+
 if (not Server) then
     error("Bot.lua should only be included on the Server")
 end
@@ -25,7 +27,7 @@ Script.Load("lua/OrdersMixin.lua")
 
 
 function Bot:Initialize(forceTeam, active, tablePosition)
-    PROFILE("Bot:Initialize")
+    PROFILE("NBot:Initialize")
 
     InitMixin(self, TechMixin)
     InitMixin(self, ExtentsMixin)
@@ -36,7 +38,8 @@ function Bot:Initialize(forceTeam, active, tablePosition)
     self.client = Server.AddVirtualClient()
     self.team = forceTeam
     self.active = active
-
+    self.lastChatMessage = nil
+    self.timeOfJump = 0
     if tablePosition then
         table.insert(gServerBots, tablePosition, self)
     else
@@ -44,8 +47,13 @@ function Bot:Initialize(forceTeam, active, tablePosition)
     end
 end
 
+
+function Bot:UnassignAll()
+    self.brain.teamBrain:UnassignBotFromAll(self)
+end
+
 function Bot:GetMapName()
-    return "bot"
+    return "NextBot"
 end
 
 function Bot:GetIsFlying()
@@ -53,7 +61,7 @@ function Bot:GetIsFlying()
 end
 
 function Bot:UpdateTeam()
-    PROFILE("Bot:UpdateTeam")
+    PROFILE("NBot:UpdateTeam")
 
     local player = self:GetPlayer()
 
@@ -77,7 +85,7 @@ function Bot:GetTeamNumber()
 end
 
 function Bot:Disconnect()
-    PROFILE("Bot:Disconnect")
+    PROFILE("NBot:Disconnect")
 
     for i, bot in ipairs(gServerBots) do
         if bot.client:GetId() == self.client:GetId() then
@@ -91,7 +99,7 @@ function Bot:Disconnect()
 end
 
 function Bot:GetPlayer()
-    PROFILE("Bot:GetPlayer")
+    PROFILE("NBot:GetPlayer")
 
     if self.client and self.client:GetId() ~= Entity.invalidId then
         return self.client:GetControllingPlayer()
@@ -105,11 +113,12 @@ end
 --  For now, just put higher-level book-keeping here I guess.
 ------------------------------------------
 function Bot:OnThink()
-    PROFILE("Bot:OnThink")
+    PROFILE("NBot:OnThink")
 
     self:UpdateTeam()
     
 end
+
 
 ------------------------------------------
 --  Console commands for managing bots
@@ -126,6 +135,15 @@ end
 
 function OnConsoleAddPassiveBots(client, numBotsParam, forceTeam, className)
     OnConsoleAddBots(client, numBotsParam, forceTeam, className, true)  
+end
+
+function OnConsoleAddAllBots(client, numBotsParam)
+  OnConsoleAddBots(client, 1, 1, "com", false)
+  OnConsoleAddBots(client, 1, 2, "com", false)
+  for index = 2, numBotsParam do
+    OnConsoleAddBots(client, 1, 1, "", false)
+    OnConsoleAddBots(client, 1, 2, "", false)
+  end
 end
 
 function OnConsoleAddBots(client, numBotsParam, forceTeam, botType, passive)
@@ -191,6 +209,9 @@ local gFreezeBots = false
 function OnConsoleFreezeBots(client)
     if GetIsClientAllowedToManage(client) then
         gFreezeBots = not gFreezeBots
+--        DebugPrint("FREEZE BOTS: " .. (gFreezeBots and "TRUE" or "FALSE"))
+    else
+--        DebugPrint("CAN'T FREEZE BOTS")
     end
 end
 
@@ -203,8 +224,11 @@ function OnVirtualClientMove(client)
         
             local player = bot:GetPlayer()
             if player then
-                if gFreezeBots then return Move() end
-                return bot:GenerateMove()
+                if gFreezeBots then 
+                  return Move() 
+                else
+                  return bot:GenerateMove()
+                end
             end
             
         end
@@ -215,7 +239,9 @@ end
 
 function OnVirtualClientThink(client, deltaTime)
 
-    if gFreezeBots then return true end
+    if gFreezeBots then
+      return true 
+    end
     
     -- If the client corresponds to one of our bots, allow it to think.
     for i, bot in ipairs(gServerBots) do
@@ -233,15 +259,39 @@ end
 
 
 -- Make sure to load these after Bot is defined
-Script.Load("lua/bots/TestBot.lua")
+-- загружаем все скрипты, чтобы перекрыть родные классы ns2
+
+Script.Load("lua/bots/BotUtils.lua")
+Script.Load("lua/bots/CommonActions.lua")
+Script.Load("lua/bots/ManyToOne.lua")
+Script.Load("lua/bots/BotTeamController.lua")
+Script.Load("lua/bots/BrainSenses.lua")
+Script.Load("lua/bots/TeamBrain.lua")
+Script.Load("lua/bots/BotAim.lua")
+Script.Load("lua/bots/BotDebug.lua")
+Script.Load("lua/bots/BotMotion.lua")
 Script.Load("lua/bots/PlayerBot.lua")
+Script.Load("lua/bots/PlayerBrain.lua")
 Script.Load("lua/bots/CommanderBot.lua")
+Script.Load("lua/bots/CommanderBrain.lua")
+Script.Load("lua/bots/AlienCommanderBrain.lua")
+Script.Load("lua/bots/MarineCommanderBrain.lua")
+--AriadnesThread.lua
+--Script.Load("lua/bots/BrainParams.lua")
+Script.Load("lua/bots/FadeBrain.lua")
+Script.Load("lua/bots/GorgeBrain.lua")
+Script.Load("lua/bots/LerkBrain.lua")
+Script.Load("lua/bots/MarineBrain.lua")
+Script.Load("lua/bots/OnosBrain.lua")
+Script.Load("lua/bots/SkulkBrain.lua")
+Script.Load("lua/bots/TestBot.lua")
 
 -- Register the bot console commands
-Event.Hook("Console_addpassivebot",  OnConsoleAddPassiveBots)
-Event.Hook("Console_addbot",         OnConsoleAddBots)
-Event.Hook("Console_removebot",      OnConsoleRemoveBots)
+Event.Hook("Console_addpassivebot", OnConsoleAddPassiveBots)
+Event.Hook("Console_addbot",        OnConsoleAddBots)
 Event.Hook("Console_addbots",        OnConsoleAddBots)
+Event.Hook("Console_maxbots",        OnConsoleAddAllBots)
+Event.Hook("Console_removebot",     OnConsoleRemoveBots)
 Event.Hook("Console_removebots",     OnConsoleRemoveBots)
 Event.Hook("Console_freezebots",     OnConsoleFreezeBots)
 
@@ -252,3 +302,19 @@ Event.Hook("VirtualClientThink",    OnVirtualClientThink)
 -- Register to handle when the server wants to generate a move
 -- for one of the virtual clients
 Event.Hook("VirtualClientMove",     OnVirtualClientMove)
+
+Print("| command examples:")
+Print("| addbot 3")
+Print("|     - add 3 auto team assign bots")
+Print("| addbot 1 2")
+Print("|     - add 1 alien player bot")
+Print("| addbot 1 1 com")
+Print("|     - add 1 marine commander bot")
+Print("| botmaxteam 4")
+Print("|     - add 1 com + 3 player bots for both teams")
+Print("| removebot 1 2")
+Print("|     - remove 1 alien bot")
+Print("|")
+Print("Created by Sepulka (nextbot.ns2@gmail.com, https://trello.com/b/k638QFsf/roadmap)")
+Print("Based on original NS2 bots, created by McGuire (max@unknownworlds.com), Mats olsson (mats.olsson@matsotech.se), Steven An (steve@unknownworlds.com), Charlie Cleveland (charlie@unknownworlds.com)")
+Print("====================== NEXTBOT INITIALIZED ======================")

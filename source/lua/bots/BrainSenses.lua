@@ -21,11 +21,11 @@ function BrainSenses:Add(senseName, evalFunc)
 end
 
 function BrainSenses:OnBeginFrame(bot)
-
+    assert(bot ~= nil)
     self.name2value = {}
+      self.name2value = {}
     self.name2evaling = {}
     self.bot = bot
-
 end
 
 function BrainSenses:GetDebugTrace()

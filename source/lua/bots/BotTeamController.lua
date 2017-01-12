@@ -1,5 +1,5 @@
 --[[
- File: lua/bots/BotTeamController.lua
+ File: lua/BotTeamController.lua
 
  Description: This Singleton controls how player bots get assigned automatically to the playing teams.
     The controller only starts to assign bots if there is a human player in any of the playing teams
@@ -18,7 +18,7 @@ BotTeamController.MaxBots = 0
 -- Returns how many humans and bots given team has
  ]]
 function BotTeamController:GetPlayerNumbersForTeam(teamNumber)
-    PROFILE("BotTeamController:GetPlayerNumbersForTeam")
+    PROFILE("NBotTeamController:GetPlayerNumbersForTeam")
 
     local botNum = 0
     local humanNum = 0
@@ -93,7 +93,7 @@ end
 -- over the PostJoinTeam method rebalancing the bots.
  ]]
 function BotTeamController:UpdateBots()
-    PROFILE("BotTeamController:UpdateBots")
+    PROFILE("NBotTeamController:UpdateBots")
 
     if self.MaxBots < 1 then return end --BotTeamController is disabled
 

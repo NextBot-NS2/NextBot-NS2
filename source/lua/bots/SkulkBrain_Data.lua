@@ -1,6 +1,10 @@
 
+Script.Load("lua/bots/BotDebug.lua")
+Script.Load("lua/bots/BotUtils.lua")
 Script.Load("lua/bots/CommonActions.lua")
 Script.Load("lua/bots/BrainSenses.lua")
+Script.Load("lua/bots/TeamBrain.lua")
+Script.Load("lua/bots/BotAim.lua")
 
 local kUpgrades = {
     kTechId.Crush,
@@ -17,10 +21,24 @@ local kUpgrades = {
 }
 
 local kEvolutions = {
-    kTechId.Lerk,
-    kTechId.Fade,
-    kTechId.Onos
+--  kTechId.Lerk
+--  kTechId.Gorge,
+  kTechId.Lerk,
+  kTechId.Fade,
+  kTechId.Onos
 }
+
+local kLeapTime = 0.2
+
+function TechIdToString(techId)
+  return LookupTechData( techId, kTechDataDisplayName, string.format("techId=%d", techId) )
+end
+
+local function PrintUpgrades(upgrades)
+  for i = 1, #upgrades do
+    Print(TechIdToString(upgrades[i]))
+  end
+end
 
 ------------------------------------------
 --  More urgent == should really attack it ASAP
@@ -97,63 +115,107 @@ local function PerformAttackEntity( eyePos, bestTarget, bot, brain, move )
 
     local marinePos = bestTarget:GetOrigin()
 
-    local doFire = false
-    bot:GetMotion():SetDesiredMoveTarget( marinePos )
-    
+    local player = bot:GetPlayer()
+    local motion = bot:GetMotion()
+    local now = Shared.GetTime()
+    local weapon = player:GetActiveWeapon()
+    local isParasite = (weapon ~= nil) and weapon:isa("Parasite")
+    local isBite = (weapon ~= nil) and weapon:isa("BiteLeap")
+    local targetIsMoveable = bestTarget:isa("Player")
+
+    local targetPoint = bestTarget:GetEngagementPoint()
     local distance = eyePos:GetDistance(marinePos)
-    if distance < 2.5 then
-        doFire = true
-    end
-                
-    if doFire then
-        local target = bestTarget:GetEngagementPoint()
-
-        if bestTarget:isa("Player") then
-             -- Attacking a player
-             target = target + Vector( math.random(), math.random(), math.random() ) * 0.3
-            if bot:GetPlayer():GetIsOnGround() and bestTarget:isa("Player") then
-                move.commands = AddMoveCommand( move.commands, Move.Jump )
-            end
-        else
-            -- Attacking a structure
-            if GetDistanceToTouch(eyePos, bestTarget) < 1 then
-                -- Stop running at the structure when close enough
-                bot:GetMotion():SetDesiredMoveTarget(nil)
-            end
+    motion:SetDesiredMoveTarget(marinePos)
+    -- leap
+--    Print(">>>>>>>>> 1 "..(GetTechTree(player:GetTeamNumber()):GetHasTech(kTechId.Leap) and "1" or "0"))
+--    Print(">>>>>>>>> 2 "..(player:GetIsLeaping() and "1" or "0"))
+--    Print(">>>>>>>>> 3 "..(((player.timeOfLeap or 0) + kLeapTime < now) and "1" or "0"))
+--    bot:PrintToChat(string.format("IsTech: %d, IsLeaping: %d, IsNow: %d",
+--      GetTechTree(player:GetTeamNumber()):GetHasTech(kTechId.Leap) and 1 or 0,
+--      player:GetIsLeaping() and 1 or 0, 
+--      ((player.timeOfLeap or 0) + kLeapTime < now) and 1 or 0))
+    if (distance > 2.5) and (distance < 10)
+      and (player:GetEnergy() > weapon:GetSecondaryEnergyCost())
+-- not working !!! 
+--      and GetTechTree(player:GetTeamNumber()):GetHasTech(kTechId.Leap)
+      then 
+        if (not player:GetIsLeaping())
+          and ((player.timeOfLeap or 0) + kLeapTime < now) then
+            move.commands = AddMoveCommand(move.commands, Move.SecondaryAttack)
         end
-
-        bot:GetMotion():SetDesiredViewTarget( target )
+    end
+    -- good for bite 
+    if (distance < 2.5) then
+      if (not weapon.primaryAttacking) then
+        if not isBite then
+          move.commands = AddMoveCommand(move.commands, Move.Weapon1)
+        else
+          if targetIsMoveable then
+               -- Attacking a player
+              targetPoint = targetPoint + Vector(math.random(), math.random(), math.random()) * 0.3
+              if player:GetIsOnGround() then
+                move.commands = AddMoveCommand(move.commands, Move.Jump)
+              end
+          else
+              -- Attacking a structure
+              if GetDistanceToTouch(eyePos, bestTarget) < 1 then
+                  -- Stop running at the structure when close enough
+                  motion:SetDesiredMoveTarget(nil)
+              end
+          end
+        end
         move.commands = AddMoveCommand( move.commands, Move.PrimaryAttack )
+      end
+    -- good for parasite
+    elseif 
+      (not player.isHallucination)
+      and (distance < 100) 
+      and (Shared.GetTime() > brain.nextAttackTime) 
+      and (player:GetEnergy() > weapon:GetSecondaryEnergyCost() + weapon:GetEnergyCost()) -- 30 for parasite, 45 - save for leap 
+      and GetBotCanSeeTarget(player, bestTarget) then
+        if (not weapon.primaryAttacking) then
+          if not isParasite then
+            move.commands = AddMoveCommand(move.commands, Move.Weapon2)
+          else
+            if bot.aim:UpdateAim(bestTarget, marinePos) then
+              move.commands = AddMoveCommand(move.commands, Move.PrimaryAttack)
+            else
+              bot:GetMotion():SetDesiredViewTarget( nil )
+            end
+          end
+        end   
+    -- other cases     
     else
-        bot:GetMotion():SetDesiredViewTarget( nil )
+        motion:SetDesiredViewTarget(nil)
 
         -- Occasionally jump
-        if math.random() < 0.1 and bot:GetPlayer():GetIsOnGround() then
-            move.commands = AddMoveCommand( move.commands, Move.Jump )
+        if math.random() < 0.1 and (player:GetIsOnGround() or player.wallWalking) then
+            move.commands = AddMoveCommand(move.commands, Move.Jump)
             if distance < 15 then
                 -- When approaching, try to jump sideways
-                bot.timeOfJump = Shared.GetTime()
-                bot.jumpOffset = nil
+                player.timeOfJump = Shared.GetTime()
+                player.jumpOffset = nil
             end    
         end        
     end
+    motion:SetDesiredViewTarget(targetPoint)
     
-    if bot.timeOfJump ~= nil and Shared.GetTime() - bot.timeOfJump < 0.5 then
+    if player.timeOfJump ~= nil and Shared.GetTime() - player.timeOfJump < 0.5 then
         
-        if bot.jumpOffset == nil then
+        if player.jumpOffset == nil then
             
             local botToTarget = GetNormalizedVectorXZ(marinePos - eyePos)
             local sideVector = botToTarget:CrossProduct(Vector(0, 1, 0))                
             if math.random() < 0.5 then
-                bot.jumpOffset = botToTarget + sideVector
+                player.jumpOffset = botToTarget + sideVector
             else
-                bot.jumpOffset = botToTarget - sideVector
+                player.jumpOffset = botToTarget - sideVector
             end            
-            bot:GetMotion():SetDesiredViewTarget( bestTarget:GetEngagementPoint() )
+            motion:SetDesiredViewTarget( bestTarget:GetEngagementPoint() )
             
         end
         
-        bot:GetMotion():SetDesiredMoveDirection( bot.jumpOffset )
+        motion:SetDesiredMoveDirection( player.jumpOffset )
     end    
     
 end
@@ -215,85 +277,130 @@ kSkulkBrainActions =
         local name = "evolve"
 
         local weight = 0.0
-        local player = bot:GetPlayer()
-
-        if not player.isHallucination and not bot.lifeformEvolution then
-            local pick = math.random(1, #kEvolutions)
-            bot.lifeformEvolution = kEvolutions[pick]
-        end
-
-        local allowedToBuy = player:GetIsAllowedToBuy()
-        local ginfo = GetGameInfoEntity()
-        if ginfo and ginfo:GetWarmUpActive() then allowedToBuy = false end
-
-        local s = brain:GetSenses()
-        local res = player:GetPersonalResources()
-        
-        local distanceToNearestThreat = s:Get("nearestThreat").distance
+        local now = Shared.GetTime()        
         local desiredUpgrades = {}
-        
-        if allowedToBuy and
-           (distanceToNearestThreat == nil or distanceToNearestThreat > 15) and 
-           (player.GetIsInCombat == nil or not player:GetIsInCombat()) then
-            
-            -- Safe enough to try to evolve            
-            
-            local existingUpgrades = player:GetUpgrades()
-
-            local avaibleUpgrades = player.lifeformUpgrades
-
-            if not avaibleUpgrades then
-                avaibleUpgrades = {}
-
-                if bot.lifeformEvolution then
-                    table.insert(avaibleUpgrades, bot.lifeformEvolution)
-                end
-
-                for i = 0, 2 do
-                    table.insert(avaibleUpgrades, kUpgrades[math.random(1,3) + i * 3])
-                end
-
-                player.lifeformUpgrades = avaibleUpgrades
-            end
-
-            local evolvingId = kTechId.Skulk
-
-            for i = 1, #avaibleUpgrades do
-                local techId = avaibleUpgrades[i]
-                local techNode = player:GetTechTree():GetTechNode(techId)
-
-                local isAvailable = false
-                local cost = 0
-                if techNode ~= nil then
-                    isAvailable = techNode:GetAvailable(player, techId, false)
-                    if isAvailable then
-                        if LookupTechData(techId, kTechDataGestateName) then
-                            cost = GetCostForTech(techId)
-                            evolvingId = techId
-                        else
-                            cost = LookupTechData(techId, kTechDataUpgradeCost, 0)
-                        end
-                    end
-                end
-                
-                if not player:GetHasUpgrade(techId) and isAvailable and res - cost > 0 and
-                        GetIsUpgradeAllowed(player, techId, existingUpgrades) and
-                        GetIsUpgradeAllowed(player, techId, desiredUpgrades) then
-                    res = res - cost
-                    table.insert(desiredUpgrades, techId)
-                end
+        local player = bot:GetPlayer()
+        if (bot.nextCheckEvolveTime == nil) or (bot.nextCheckEvolveTime > now) then
+          bot.nextCheckEvolveTime = now + 3
+  
+          if not player.isHallucination and not player.lifeformEvolution then
+              local pick = math.random(1, #kEvolutions)
+              player.lifeformEvolution = kEvolutions[pick]
+          end
+  
+          local allowedToBuy = player:GetIsAllowedToBuy()
+  --        local ginfo = GetGameInfoEntity()
+  --        if ginfo and ginfo:GetWarmUpActive() then allowedToBuy = false end
+  
+          local s = brain:GetSenses()
+          local res = player:GetPersonalResources()
+          
+          local distanceToNearestThreat = s:Get("nearestThreat").distance
+          
+          local hive = s:Get("nearestHive")
+          local hiveDist = hive and player:GetOrigin():GetDistance(hive:GetOrigin()) or 0
+  
+          if allowedToBuy and
+             (distanceToNearestThreat == nil or distanceToNearestThreat > 30)
+             and (not EntityIsVisible(player)) 
+             and (player.GetIsInCombat == nil or not player:GetIsInCombat())
+             and (hiveDist < 20) then
+              
+              -- Safe enough to try to evolve            
+              
+              local existingUpgrades = player:GetUpgrades()
+  
+              local avaibleUpgrades = player.lifeformUpgrades
+  
+              if not avaibleUpgrades then
+                  avaibleUpgrades = {}
+  
+                  if player.lifeformEvolution then
+                      table.insert(avaibleUpgrades, player.lifeformEvolution)
+                  end
+  
+                  for i = 0, 2 do
+                      table.insert(avaibleUpgrades, kUpgrades[math.random(1,3) + i * 3])
+                  end
+  
+                  player.lifeformUpgrades = avaibleUpgrades
+              end
+  
+              local evolvingId = kTechId.Skulk
+  
+              for i = 1, #avaibleUpgrades do
+                  local techId = avaibleUpgrades[i]
+                  local techNode = player:GetTechTree():GetTechNode(techId)
+  
+                  local isAvailable = false
+                  local cost = 0
+                  if techNode ~= nil then
+                      isAvailable = techNode:GetAvailable(player, techId, false)
+                      if isAvailable then
+                          if LookupTechData(techId, kTechDataGestateName) then
+                              cost = GetCostForTech(techId)
+                              evolvingId = techId
+                          else
+                              cost = LookupTechData(techId, kTechDataUpgradeCost, 0)
+                          end
+                      end
+                  end
+                  
+                  local es = TechIdToString(techId)
+                  local hasUpgrade = player:GetHasUpgrade(techId)
+                  local upgradeAllowed1 = GetIsUpgradeAllowed(player, techId, existingUpgrades)
+                  local upgradeAllowed2 = GetIsUpgradeAllowed(player, techId, desiredUpgrades)
+--                  Print(string.format("%s: hasUpgrade = %s, isAvailable = %s, allowed to existings = %s, allowed to desired = %s, res = %d, cost = %d", 
+--                    es, BoolToStr(hasUpgrade), BoolToStr(isAvailable),
+--                    BoolToStr(upgradeAllowed1), BoolToStr(upgradeAllowed2),
+--                    res, cost
+--                  ))
+                  
+                  if (not hasUpgrade) and isAvailable and res - cost > 0 and
+                          upgradeAllowed1 and -- WTF?
+                          upgradeAllowed2 then
+                      res = res - cost
+                      table.insert(desiredUpgrades, techId)
+                  end
+               end
             end
             
             if #desiredUpgrades > 0 then
                 weight = 100.0
             end                                
         end
-        
         return { name = name, weight = weight,
             perform = function(move)
-                player:ProcessBuyAction( desiredUpgrades )
+                if player.lifeformEvolution == kTechId.Gorge then
+                  -- DebugPrint("is gorge")
+                  local team = player:GetTeam()
+                  local teamNumber = player:GetTeamNumber()
+                  local humanNum, botsNum = GetPlayerNumbersForTeam(teamNumber)
+                  local teamCount = humanNum + botsNum
+                  local maxGorgeCount = math.floor(teamCount / 4)
+                  local gorgeCount = 0
+                  local function count(player)
+                    if player:isa("Gorge") or player:isa("GorgeEgg") or player:isa("Embryo") then
+                      gorgeCount = gorgeCount + 1
+                    end
+                  end
+                  team:ForEachPlayer(count)
+                  -- DebugPrint("max gorge count = %d", maxGorgeCount)
+                  --DebugPrint("gorgeCount = %d", gorgeCount)
+                  if (gorgeCount >= maxGorgeCount) then
+                    DebugPrint("Gorge evolution cancelled")
+                    player.lifeformEvolution = nil
+                    desiredUpgrades = {}
+                  end
+                end
+
+                if (player.lifeformEvolution) then
+                  DebugPrint("%s - PROCESS BUY ACTION", EntityToString(player))
+--                  PrintUpgrades(desiredUpgrades)
+                  player:ProcessBuyAction( desiredUpgrades )
+                end
+                return
             end }
-    
     end,
 
     --[[
@@ -340,7 +447,7 @@ kSkulkBrainActions =
                 end)
         
         local weapon = skulk:GetActiveWeapon()
-        local canAttack = weapon ~= nil and weapon:isa("BiteLeap")
+        local canAttack = weapon ~= nil -- and weapon:isa("BiteLeap")
 
         local weight = 0.0
 
@@ -507,7 +614,7 @@ function CreateSkulkBrainSenses()
                     end
                 end)                
         end)
-
+        
     s:Add("nearestThreat", function(db)
             local allThreats = db:Get("allThreats")
             local player = db.bot:GetPlayer()
@@ -525,5 +632,27 @@ function CreateSkulkBrainSenses()
             return {distance = distance, memory = nearestThreat}
         end)
 
+    s:Add("nearestHive", function(db)
+        local player = db.bot:GetPlayer()
+        local playerPos = player:GetOrigin()
+
+        local hives = GetEntitiesForTeam("Hive", player:GetTeamNumber())
+
+        local builtHives = {}
+
+        -- retreat only to built hives
+        for _, hive in ipairs(hives) do
+
+            if hive:GetIsBuilt() and hive:GetIsAlive() then
+                table.insert(builtHives, hive)
+            end
+
+        end
+
+        Shared.SortEntitiesByDistance(playerPos, builtHives)
+
+        return builtHives[1]
+      end)
+        
     return s
 end

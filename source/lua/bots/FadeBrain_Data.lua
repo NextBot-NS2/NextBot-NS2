@@ -1,6 +1,10 @@
 
+Script.Load("lua/bots/BotDebug.lua")
+Script.Load("lua/bots/BotUtils.lua")
 Script.Load("lua/bots/CommonActions.lua")
 Script.Load("lua/bots/BrainSenses.lua")
+Script.Load("lua/bots/TeamBrain.lua")
+Script.Load("lua/bots/BotAim.lua")
 
 local kUpgrades = {
     kTechId.Crush,
@@ -79,6 +83,7 @@ local function PerformAttackEntity( eyePos, bestTarget, bot, brain, move )
 
     assert( bestTarget )
 
+    local player = bot:GetPlayer()
     local marinePos = bestTarget:GetOrigin()
 
     local doFire = false
@@ -97,7 +102,7 @@ local function PerformAttackEntity( eyePos, bestTarget, bot, brain, move )
         
         if bestTarget:isa("Player") then
             -- Attacking a player
-            if bot:GetPlayer():GetIsOnGround() and bestTarget:isa("Player") then
+            if player:GetIsOnGround() and bestTarget:isa("Player") then
                 move.commands = AddMoveCommand( move.commands, Move.SecondaryAttack )
             end
         else
@@ -116,28 +121,28 @@ local function PerformAttackEntity( eyePos, bestTarget, bot, brain, move )
             move.commands = AddMoveCommand( move.commands, Move.Jump )
             if distance < 15 then
                 -- When approaching, try to jump sideways
-                bot.timeOfJump = Shared.GetTime()
-                bot.jumpOffset = nil
+                player.timeOfJump = Shared.GetTime()
+                player.jumpOffset = nil
             end    
         end        
     end
     
-    if bot.timeOfJump ~= nil and Shared.GetTime() - bot.timeOfJump < 0.5 then
+    if player.timeOfJump ~= nil and Shared.GetTime() - player.timeOfJump < 0.5 then
         
-        if bot.jumpOffset == nil then
+        if player.jumpOffset == nil then
             
             local botToTarget = GetNormalizedVectorXZ(marinePos - eyePos)
             local sideVector = botToTarget:CrossProduct(Vector(0, 1, 0))                
             if math.random() < 0.5 then
-                bot.jumpOffset = botToTarget + sideVector
+                player.jumpOffset = botToTarget + sideVector
             else
-                bot.jumpOffset = botToTarget - sideVector
+                player.jumpOffset = botToTarget - sideVector
             end            
             bot:GetMotion():SetDesiredViewTarget( bestTarget:GetEngagementPoint() )
             
         end
         
-        bot:GetMotion():SetDesiredMoveDirection( bot.jumpOffset )
+        bot:GetMotion():SetDesiredMoveDirection( player.jumpOffset )
     end    
     
 end
@@ -207,60 +212,64 @@ kFadeBrainActions =
 
         local weight = 0.0
         local player = bot:GetPlayer()
-        local s = brain:GetSenses()
-        local res = player:GetPersonalResources()
-
-        local distanceToNearestThreat = s:Get("nearestThreat").distance
         local desiredUpgrades = {}
-
-        if player:GetIsAllowedToBuy() and
-                (distanceToNearestThreat == nil or distanceToNearestThreat > 15) and
-                (player.GetIsInCombat == nil or not player:GetIsInCombat()) then
-
-            -- Safe enough to try to evolve
-
-            local existingUpgrades = player:GetUpgrades()
-
-            local avaibleUpgrades = player.lifeformUpgrades
-
-            if not avaibleUpgrades then
-                avaibleUpgrades = {}
-
-                for i = 0, 2 do
-                    table.insert(avaibleUpgrades, kUpgrades[math.random(1,3) + i * 3])
-                end
-
-                if player.lifeformEvolution then
-                    table.insert(avaibleUpgrades, player.lifeformEvolution)
-                end
-
-                player.lifeformUpgrades = avaibleUpgrades
-            end
-
-            for i = 1, #avaibleUpgrades do
-                local techId = avaibleUpgrades[i]
-                local techNode = player:GetTechTree():GetTechNode(techId)
-
-                local isAvailable = false
-                local cost = 0
-                if techNode ~= nil then
-                    isAvailable = techNode:GetAvailable(player, techId, false)
-                    cost = LookupTechData(techId, kTechDataGestateName) and GetCostForTech(techId) or LookupTechData(kTechId.Fade, kTechDataUpgradeCost, 0)
-                end
-
-                if not player:GetHasUpgrade(techId) and isAvailable and res - cost > 0 and
-                        GetIsUpgradeAllowed(player, techId, existingUpgrades) and
-                        GetIsUpgradeAllowed(player, techId, desiredUpgrades) then
-                    res = res - cost
-                    table.insert(desiredUpgrades, techId)
-                end
-            end
-
-            if  #desiredUpgrades > 0 then
-                weight = 100.0
-            end
-        end
-
+        local now = Shared.GetTime()
+        if (bot.nextCheckEvolveTime == nil) or (bot.nextCheckEvolveTime > now) then
+          bot.nextCheckEvolveTime = now + 3
+          local s = brain:GetSenses()
+          local res = player:GetPersonalResources()
+  
+          local distanceToNearestThreat = s:Get("nearestThreat").distance
+  
+          if player:GetIsAllowedToBuy() and
+             (distanceToNearestThreat == nil or distanceToNearestThreat > 20)
+             and (not EntityIsVisible(player)) 
+             and (player.GetIsInCombat == nil or not player:GetIsInCombat()) then
+  
+              -- Safe enough to try to evolve
+  
+              local existingUpgrades = player:GetUpgrades()
+  
+              local avaibleUpgrades = player.lifeformUpgrades
+  
+              if not avaibleUpgrades then
+                  avaibleUpgrades = {}
+  
+                  for i = 0, 2 do
+                      table.insert(avaibleUpgrades, kUpgrades[math.random(1,3) + i * 3])
+                  end
+  
+                  if player.lifeformEvolution then
+                      table.insert(avaibleUpgrades, player.lifeformEvolution)
+                  end
+  
+                  player.lifeformUpgrades = avaibleUpgrades
+              end
+  
+              for i = 1, #avaibleUpgrades do
+                  local techId = avaibleUpgrades[i]
+                  local techNode = player:GetTechTree():GetTechNode(techId)
+  
+                  local isAvailable = false
+                  local cost = 0
+                  if techNode ~= nil then
+                      isAvailable = techNode:GetAvailable(player, techId, false)
+                      cost = LookupTechData(techId, kTechDataGestateName) and GetCostForTech(techId) or LookupTechData(kTechId.Fade, kTechDataUpgradeCost, 0)
+                  end
+  
+                  if not player:GetHasUpgrade(techId) and isAvailable and res - cost > 0 and
+                          GetIsUpgradeAllowed(player, techId, existingUpgrades) and
+                          GetIsUpgradeAllowed(player, techId, desiredUpgrades) then
+                      res = res - cost
+                      table.insert(desiredUpgrades, techId)
+                  end
+              end
+  
+              if  #desiredUpgrades > 0 then
+                  weight = 100.0
+              end
+          end
+        end  
         return { name = name, weight = weight,
             perform = function(move)
                 player:ProcessBuyAction( desiredUpgrades )
@@ -433,7 +442,7 @@ kFadeBrainActions =
         local player = bot:GetPlayer()
 
         if player:GetVelocity():GetLength() < 8 and player:GetEnergy() > 60 then
-            weight = 15
+            weight = 26
         end
 
         return { name = "bink", weight = weight,
@@ -447,7 +456,7 @@ kFadeBrainActions =
         local player = bot:GetPlayer()
 
         if player:GetEnergy() < 30 and (bot.timeOfMeta or 0) < Shared.GetTime() then
-            weight = 15
+            weight = 26
             bot.timeOfMeta = Shared.GetTime() + kMetabolizeDelay
         end
 
@@ -467,21 +476,26 @@ kFadeBrainActions =
         local hiveDist = hive and player:GetOrigin():GetDistance(hive:GetOrigin()) or 0
         local healthFraction = sdb:Get("healthFraction")
 
-        -- If we are pretty close to the hive, stay with it a bit longer to encourage full-healing, etc.
-        -- so pretend our situation is more dire than it is
-        if hiveDist < 4.0 and healthFraction < 0.9 then
-            healthFraction = healthFraction / 3.0
-        end
-
         local weight = 0.0
-
-        if hive then
-
-            weight = EvalLPF( healthFraction, {
-                { 0.0, 25.0 },
-                { 0.6, 0.0 },
-                { 1.0, 0.0 }
-            })
+  
+        if (not EntityIsVisible(player)) and (hiveDist < 4) and (healthFraction < 0.9) then
+          -- standing for full repair
+          weight = 25.0
+        else
+          -- If we are pretty close to the hive, stay with it a bit longer to encourage full-healing, etc.
+          -- so pretend our situation is more dire than it is
+          if hiveDist < 4.0 and healthFraction < 0.9 then
+              healthFraction = healthFraction / 3.0
+          end
+  
+          if hive then
+  
+              weight = EvalLPF( healthFraction, {
+                  { 0.0, 25.0 },
+                  { 0.6, 0.0 },
+                  { 1.0, 0.0 }
+              })
+          end
         end
 
         return { name = name, weight = weight,
@@ -489,7 +503,7 @@ kFadeBrainActions =
                 if hive then
 
                     -- we are retreating, unassign ourselves from anything else, e.g. attack targets
-                    brain.teamBrain:UnassignBot(bot)
+                    brain.teamBrain:UnassignBotFromAll(bot)
 
                     local touchDist = GetDistanceToTouch( player:GetEyePos(), hive )
                     if touchDist > 1.5 then

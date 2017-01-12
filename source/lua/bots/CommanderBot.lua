@@ -49,7 +49,7 @@ end
 --  Override
 ------------------------------------------
 function CommanderBot:GetNamePrefix()
-    return "[BOT] "
+    return "[NextBot] "
 end
 
 ------------------------------------------
@@ -86,7 +86,7 @@ end
 --  Override
 ------------------------------------------
 function CommanderBot:GenerateMove()
-    PROFILE("CommanderBot:GenerateMove")
+    PROFILE("NCommanderBot:GenerateMove")
 
     if gBotDebug:Get("spam") then
         Print("CommanderBot:GenerateMove")

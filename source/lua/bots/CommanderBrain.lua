@@ -33,7 +33,7 @@ end
 --  The result is a hash table with techId as keys and an array of units as values. These are the units that you can perform the tech on (it may just be com)
 ------------------------------------------
 function CommanderBrain:GetDoableTechIds(com)
-    PROFILE("CommanderBrain:GetDoableTechIds")
+    PROFILE("NCommanderBrain:GetDoableTechIds")
 
     local teamNum = self:GetExpectedTeamNumber()
     local tree = GetTechTree(teamNum)
@@ -144,7 +144,7 @@ end
 --  Helper function for subclasses
 ------------------------------------------
 function CommanderBrain:ExecuteTechId( commander, techId, position, hostEntity )
-    PROFILE("CommanderBrain:ExecuteTechId")
+    PROFILE("NCommanderBrain:ExecuteTechId")
 
     --DebugPrint("Combrain executing %s at %s on %s", EnumToString(kTechId, techId),
             --ToString(position),

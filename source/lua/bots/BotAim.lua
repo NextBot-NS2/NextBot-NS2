@@ -38,7 +38,7 @@ function BotAim_UpdateAim(self, target, targetAimPoint)
     if self.target ~= target or now - self.lastTrackTime > 0.3 then
         self.targetTrack = {}
         self.target = target
-        -- Log("%s: Reset aim", self.owner)
+        DebugPrint("%s: Reset aim", self.owner)
     end
     self.lastTrackTime = now
     table.insert(self.targetTrack, { targetAimPoint, now, target} )
@@ -53,7 +53,7 @@ gBotDebug:AddBoolean("aim", false)
 
 function BotAim_GetAimPoint(self, now, aimPoint)
     if gBotDebug:Get("aim") and gBotDebug:Get("spam") then
-        Log("%s: getting aim point", self.owner)
+      DebugPrint("%s: getting aim point", self.owner)
     end
 
     while #self.targetTrack > 1 do
@@ -77,19 +77,19 @@ function BotAim_GetAimPoint(self, now, aimPoint)
                     local result = p1 + movementVector * dt
                     local delta = result - aimPoint
                     if gBotDebug:Get("aim") then
-                        Log("%s: Aiming at %s, off by %s, speed %s (%s tracks)", self.owner, target1, delta:GetLength(), speed, #self.targetTrack)
+                        DebugPrint("%s: Aiming at %s, off by %s, speed %s (%s tracks)", self.owner, target1, delta:GetLength(), speed, #self.targetTrack)
                     end
                     return result
                 end
             end
             if gBotDebug:Get("aim") and gBotDebug:Get("spam") then
-                Log("%s: waiting for reaction time", self.owner)
+                DebugPrint("%s: waiting for reaction time", self.owner)
             end
             return null
         end
     end
     if gBotDebug:Get("aim") and gBotDebug:Get("spam") then
-        Log("%s: no target", self.owner)
+        DebugPrint("%s: no target", self.owner)
     end
     return nil
 end

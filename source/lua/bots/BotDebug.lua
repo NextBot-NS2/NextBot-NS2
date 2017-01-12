@@ -59,13 +59,15 @@ end
 gBotDebug = BotDebug()
 gBotDebug:Initialize()
 
+-- $defaultvalue false
 gBotDebug:AddBoolean("spam", false)
 
 ------------------------------------------
 --  Console commands
 ------------------------------------------
 
-gDebugSelectedBots = false
+-- $defaultvalue false
+gDebugSelectedBots = true
 
 Event.Hook("Console_bot_target",
         function(client)
@@ -132,9 +134,14 @@ Event.Hook("Console_bot_debugselected",
             
         end)
 
-Event.Hook("Console_bot_hotload", function()
+Event.Hook("Console_nb_hotload", function()
+        Script.Load("lua/bots/Bot.lua", true)
+        Script.Load("lua/bots/PlayerBot.lua", true)
+        Script.Load("lua/bots/PlayerBrain.lua", true)
         Script.Load("lua/bots/MarineBrain_Data.lua", true)
         Script.Load("lua/bots/SkulkBrain_Data.lua", true)
+        Script.Load("lua/bots/GorgeBrain.lua", true)
+        Script.Load("lua/bots/GorgeBrain_Data.lua", true)
         Script.Load("lua/bots/MarineCommanderBrain_Data.lua", true)
         Script.Load("lua/bots/AlienCommanderBrain_Data.lua", true)
         -- TODO team brain, etc.

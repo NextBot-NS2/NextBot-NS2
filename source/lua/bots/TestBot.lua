@@ -1,6 +1,6 @@
 --=============================================================================
 --
--- lua/bots/TestBot.lua
+-- lua/TestBot.lua
 --
 -- Created by Max McGuire (max@unknownworlds.com)
 -- Copyright (c) 2011, Unknown Worlds Entertainment, Inc.

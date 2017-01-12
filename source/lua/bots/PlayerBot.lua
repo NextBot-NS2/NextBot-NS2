@@ -12,6 +12,7 @@
 --=============================================================================
 
 Script.Load("lua/bots/Bot.lua")
+Script.Load("lua/bots/BotAim.lua")
 Script.Load("lua/bots/BotMotion.lua")
 Script.Load("lua/bots/MarineBrain.lua")
 Script.Load("lua/bots/SkulkBrain.lua")
@@ -115,11 +116,11 @@ function PlayerBot:GetPlayerHasOrder()
 end
 
 function PlayerBot:GetNamePrefix()
-    return "[BOT] "
+    return "[NextBot] "
 end
 
 function PlayerBot:UpdateNameAndGender()
-    PROFILE("PlayerBot:UpdateNameAndGender")
+    PROFILE("NPlayerBot:UpdateNameAndGender")
 
     -- Set name after a bit of time to simulate real players
     if self.botSetName == nil and math.random() < .2 then
@@ -196,10 +197,10 @@ end
 -- what a client sends across the network.
 --
 function PlayerBot:GenerateMove()
-    PROFILE("PlayerBot:GenerateMove")
+    PROFILE("NPlayerBot:GenerateMove")
 
     if gBotDebug:Get("spam") then
-        Log("PlayerBot:GenerateMove")
+        DebugPrint("PlayerBot:GenerateMove")
     end
 
     self:_LazilyInitBrain()
@@ -212,6 +213,7 @@ function PlayerBot:GenerateMove()
         -- always clear view each frame
         self:GetMotion():SetDesiredViewTarget(nil)
 
+        -- brain updates not every call
         self.brain:Update(self,  move)
 
     end
@@ -222,22 +224,64 @@ function PlayerBot:GenerateMove()
     if player ~= nil then
 
         local viewDir, moveDir, doJump = self:GetMotion():OnGenerateMove(player)
+        local isLerk = player:isa("Lerk")
 
-        move.yaw = GetYawFromVector(viewDir) - player:GetBaseViewAngles().yaw
-        move.pitch = GetPitchFromVector(viewDir)
-
-        moveDir.y = 0
-        moveDir = moveDir:GetUnit()
-        local zAxis = Vector(viewDir.x, 0, viewDir.z):GetUnit()
-        local xAxis = zAxis:CrossProduct(Vector(0, -1, 0))
-        local moveZ = moveDir:DotProduct(zAxis)
-        local moveX = moveDir:DotProduct(xAxis)
-        move.move = GetNormalizedVector(Vector(moveX, 0, moveZ))
-
-        if doJump then
-            move.commands = AddMoveCommand(move.commands, Move.Jump)
+        -- переводим вектор движения в управление относительно того, куда смотрит игрок
+        if isLerk then
+          -- влево-вправо
+--          move.yaw = GetYawFromVector(moveDir) - player:GetBaseViewAngles().yaw
+--          -- вверх-вниз
+--          move.pitch = GetPitchFromVector(moveDir) - player:GetBaseViewAngles().pitch
+--  
+--          move.move = Vector(0, 0, 1)
+          -- вычисляем смещение взгляда влево-вправо
+          move.yaw = GetYawFromVector(viewDir) - player:GetBaseViewAngles().yaw
+          -- вычисляем смещение взгляда вверх-вниз
+          move.pitch = GetPitchFromVector(viewDir) - player:GetBaseViewAngles().pitch
+          -- получаем направление движения
+          moveDir = moveDir:GetUnit()
+          -- получаем вектор направления взгляда в горизонтальной плоскости
+          local zAxis = Vector(viewDir.x, 0, viewDir.z):GetUnit()
+          -- получаем вектор "вправо" относительно вектора просмотра (линия стрейфа)
+          local xAxis = zAxis:CrossProduct(Vector(0, -1, 0))
+          -- вычисляем движение "вперед-назад" относительно направления взгляда игрока
+          local moveZ = moveDir:DotProduct(zAxis)
+          -- вычисляем движение "влево-вправо" относительно направления взгляда игрока
+          local moveX = moveDir:DotProduct(xAxis)
+          -- получаем вектор движения относительно взгляда игрока
+          move.move = GetNormalizedVector(Vector(moveX, 0, moveZ))
+        else
+          -- влево-вправо
+          move.yaw = GetYawFromVector(viewDir) - player:GetBaseViewAngles().yaw
+          -- вверх-вниз
+          move.pitch = GetPitchFromVector(viewDir)
+  
+          moveDir.y = 0
+          moveDir = moveDir:GetUnit()
+          -- zAxis - вектор направления просмотра в горизонтали
+          local zAxis = Vector(viewDir.x, 0, viewDir.z):GetUnit()
+          -- xAxis - вектор "вправо" относительно вектора просмотра (направление стрейфа)
+          local xAxis = zAxis:CrossProduct(Vector(0, -1, 0))
+          -- moveZ - направление вперед-назад
+          local moveZ = moveDir:DotProduct(zAxis)
+          -- moveX - направление влево-вправо
+          local moveX = moveDir:DotProduct(xAxis)
+          move.move = GetNormalizedVector(Vector(moveX, 0, moveZ))
         end
 
+        -- сейчас логика прыжка разделена между BotMotion() и PlayerBrain()
+        -- надо будет определиться с местом и способом управления прыжками/полетам
+        -- костыль для лерка - чтобы джамп не отжимался обратно
+        if player.prevJump == nil then
+          player.prevJump = false
+        end
+        if doJump then
+          move.commands = AddMoveCommand(move.commands, Move.Jump)
+          if (not isLerk) and (not player.prevJump) then
+            player.timeOfJump = Shared.GetTime()
+          end
+        end
+        player.prevJump = doJump
     end
     
     return move
@@ -245,7 +289,7 @@ function PlayerBot:GenerateMove()
 end
 
 function PlayerBot:TriggerAlerts()
-    PROFILE("PlayerBot:TriggerAlerts")
+    PROFILE("NPlayerBot:TriggerAlerts")
 
     local player = self:GetPlayer()
     
@@ -302,17 +346,13 @@ function PlayerBot:GetMotion()
 end
 
 function PlayerBot:OnThink()
-    PROFILE("PlayerBot:OnThink")
+    PROFILE("NPlayerBot:OnThink")
 
     Bot.OnThink(self)
 
     self:_LazilyInitBrain()
 
-    if not self.initializedBot then
-        self.prefersAxe = (math.random() < .5)
-        self.inAttackRange = false
-        self.initializedBot = true
-    end
+    self.initializedBot = true
         
     self:UpdateNameAndGender()
 end

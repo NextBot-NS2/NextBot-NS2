@@ -228,9 +228,9 @@ if Server then
         PROFILE("LOSMixin:SharedUpdate")
         
         -- Prevent entities from being sighted before the game starts.
-        if not GetGamerules():GetGameStarted() then
-            return
-        end
+--        if not GetGamerules():GetGameStarted() then
+--            return
+--        end
         
         local now = Shared.GetTime()
         if self.dirtyLOS and self.timeLastLOSDirty + 0.2 < now then

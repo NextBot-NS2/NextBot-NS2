@@ -1,0 +1,4 @@
+modEntry = {
+	Server = "lua/bots/Bot.lua",
+	Priority = 5
+}
