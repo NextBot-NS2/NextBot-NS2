@@ -508,4 +508,72 @@ function PrintToChat(player, teamOnly, message)
     end
   end
 end
-  
+
+function TechIdToString(techId)
+  return LookupTechData( techId, kTechDataDisplayName, string.format("techId=%d", techId) )
+end
+
+--------------------- UPGRADES ----------------------
+
+-- copied from AlienUI_GetUpgradesForCategory()
+function GetAvailableUpgradesForHiveTypeId(hiveTypeId)
+    Print("GetAvailableUpgradesForHiveTypeId "..TechIdToString(hiveTypeId))
+    local upgrades = {}
+    local techTree = GetTechTree(kAlienTeamType)
+    if techTree then
+        for _, upgradeId in ipairs(techTree:GetAddOnsForTechId(kTechId.AllAliens)) do
+            Print("test upgrade "..TechIdToString(upgradeId).." >>> "..TechIdToString(LookupTechData(upgradeId, kTechDataCategory, kTechId.None)))        
+            if LookupTechData(upgradeId, kTechDataCategory, kTechId.None) == hiveTypeId then
+                Print("### available upgrade "..TechIdToString(upgradeId))        
+                table.insert(upgrades, upgradeId)
+            end
+        end
+    end
+    Print("#upgrades = "..#upgrades)
+    return upgrades
+end
+
+-- hive type id -> upgrade tech id
+local kAlienAvailableUpgrades = nil
+
+function GetAlienRandomUpgrades()
+  -- проверяем, есть ли список возможных апгрейдов для данного типа жизни
+  -- при необходимости инициализируем
+  if not kAlienAvailableUpgrades then
+    kAlienAvailableUpgrades = {}
+
+    local techTree = GetTechTree(kAlienTeamType)
+    if techTree then
+        for _, upgradeId in ipairs(techTree:GetAddOnsForTechId(kTechId.AllAliens)) do
+--            Print("test upgrade "..TechIdToString(upgradeId).." >>> "..TechIdToString(LookupTechData(upgradeId, kTechDataCategory, kTechId.None)))        
+            local techCategory = LookupTechData(upgradeId, kTechDataCategory, kTechId.None) 
+            if (techCategory == kTechId.CragHive) or (techCategory == kTechId.ShiftHive) or (techCategory == kTechId.ShadeHive) then
+--                Print("### available upgrade "..TechIdToString(upgradeId).." for "..TechIdToString(techCategory))        
+                local hiveUpgrades = kAlienAvailableUpgrades[techCategory]
+                if not hiveUpgrades then
+                  hiveUpgrades = {}
+                end
+                table.insert(hiveUpgrades, upgradeId)
+--                Print("hive upgrades "..#hiveUpgrades)
+                kAlienAvailableUpgrades[techCategory] = hiveUpgrades
+            end
+        end
+    end
+  end
+--  PrintTable(kAlienAvailableUpgrades)
+  local desiredUpgrades = {}
+  for hiveType, possibleUpgrades in pairs(kAlienAvailableUpgrades) do
+    local upgradeCount = #possibleUpgrades
+--    Print("upgrade count = "..upgradeCount)
+    local upgradeIndex = math.random(1, upgradeCount)
+--    Print("upgrade index = "..upgradeIndex)
+    local desiredUpgrade = possibleUpgrades[upgradeIndex]
+--    Print("desiredUpgrade = "..TechIdToString(desiredUpgrade))
+    table.insert(desiredUpgrades, desiredUpgrade)
+  end
+  return desiredUpgrades
+end
+
+function BoolToStr(bool)
+  return bool and "true" or "false"
+end

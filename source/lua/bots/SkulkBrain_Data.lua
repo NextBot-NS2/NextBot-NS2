@@ -5,20 +5,22 @@ Script.Load("lua/bots/CommonActions.lua")
 Script.Load("lua/bots/BrainSenses.lua")
 Script.Load("lua/bots/TeamBrain.lua")
 Script.Load("lua/bots/BotAim.lua")
+Script.Load("lua/TechTree.lua")
+Script.Load("lua/TechData.lua")
 
-local kUpgrades = {
-    kTechId.Crush,
-    kTechId.Carapace,
-    kTechId.Regeneration,
-        
-    kTechId.Vampirism,
-    kTechId.Aura,
-    kTechId.Focus,
-    
-    kTechId.Silence,
-    kTechId.Celerity,
-    kTechId.Adrenaline,
-}
+--local kUpgrades = {
+--    kTechId.Crush,
+--    kTechId.Carapace,
+--    kTechId.Regeneration,
+--        
+--    kTechId.Vampirism,
+--    kTechId.Aura,
+--    kTechId.Focus,
+--    
+--    kTechId.Silence,
+--    kTechId.Celerity,
+--    kTechId.Adrenaline,
+--}
 
 local kEvolutions = {
 --  kTechId.Lerk
@@ -29,10 +31,6 @@ local kEvolutions = {
 }
 
 local kLeapTime = 0.2
-
-function TechIdToString(techId)
-  return LookupTechData( techId, kTechDataDisplayName, string.format("techId=%d", techId) )
-end
 
 local function PrintUpgrades(upgrades)
   for i = 1, #upgrades do
@@ -278,100 +276,89 @@ kSkulkBrainActions =
 
         local weight = 0.0
         local now = Shared.GetTime()        
-        local desiredUpgrades = {}
+        local pendingUpgrades = {}
         local player = bot:GetPlayer()
-        if (bot.nextCheckEvolveTime == nil) or (bot.nextCheckEvolveTime > now) then
+        local pendingLifeform = nil
+        
+        if (player:GetIsAllowedToBuy())
+        and ((bot.nextCheckEvolveTime == nil) or (bot.nextCheckEvolveTime > now)) then
+
           bot.nextCheckEvolveTime = now + 3
-  
-          if not player.isHallucination and not player.lifeformEvolution then
-              local pick = math.random(1, #kEvolutions)
-              player.lifeformEvolution = kEvolutions[pick]
+          
+          if not player.desiredLifeform then
+            local pick = math.random(1, #kEvolutions)
+            player.desiredLifeform = kEvolutions[pick]
           end
   
-          local allowedToBuy = player:GetIsAllowedToBuy()
   --        local ginfo = GetGameInfoEntity()
   --        if ginfo and ginfo:GetWarmUpActive() then allowedToBuy = false end
   
           local s = brain:GetSenses()
-          local res = player:GetPersonalResources()
-          
+
           local distanceToNearestThreat = s:Get("nearestThreat").distance
           
           local hive = s:Get("nearestHive")
           local hiveDist = hive and player:GetOrigin():GetDistance(hive:GetOrigin()) or 0
   
-          if allowedToBuy and
-             (distanceToNearestThreat == nil or distanceToNearestThreat > 30)
+          if (distanceToNearestThreat == nil or distanceToNearestThreat > 30)
              and (not EntityIsVisible(player)) 
              and (player.GetIsInCombat == nil or not player:GetIsInCombat())
              and (hiveDist < 20) then
               
               -- Safe enough to try to evolve            
               
+              local res = player:GetPersonalResources()
+              
               local existingUpgrades = player:GetUpgrades()
   
-              local avaibleUpgrades = player.lifeformUpgrades
-  
-              if not avaibleUpgrades then
-                  avaibleUpgrades = {}
-  
-                  if player.lifeformEvolution then
-                      table.insert(avaibleUpgrades, player.lifeformEvolution)
-                  end
-  
-                  for i = 0, 2 do
-                      table.insert(avaibleUpgrades, kUpgrades[math.random(1,3) + i * 3])
-                  end
-  
-                  player.lifeformUpgrades = avaibleUpgrades
+              pendingLifeform = kTechId.Skulk
+              local desiredLifeform = player.desiredLifeform
+              local pendingEvolveToLifeform = false
+              
+              if LookupTechData(desiredLifeform, kTechDataGestateName) then
+                 local cost = GetCostForTech(desiredLifeform)  
+                 if res >= cost then
+                    res = res - cost
+                    table.insert(pendingUpgrades, desiredLifeform)
+                    pendingLifeform = desiredLifeform
+                    pendingEvolveToLifeform = true
+                    -- force choice upgrades for desired lifeform
+                    -- Print("force choice upgrades for desired lifeform")
+                    -- player.desiredUpgrades = GetAlienRandomUpgrades()
+                 end                              
               end
-  
-              local evolvingId = kTechId.Skulk
-  
-              for i = 1, #avaibleUpgrades do
-                  local techId = avaibleUpgrades[i]
-                  local techNode = player:GetTechTree():GetTechNode(techId)
-  
-                  local isAvailable = false
-                  local cost = 0
-                  if techNode ~= nil then
-                      isAvailable = techNode:GetAvailable(player, techId, false)
+              
+              if not player.desiredUpgrades then
+--                Print("create desired upgrades for player"..player)
+                player.desiredUpgrades = GetAlienRandomUpgrades()
+              end
+
+              local techTree = player:GetTechTree()
+              for _, desiredUpgradeTechId in ipairs(player.desiredUpgrades) do
+                Print("Has Upgrade "..TechIdToString(desiredUpgradeTechId).." = "..BoolToStr(player:GetHasUpgrade(desiredUpgradeTechId)))
+                if pendingEvolveToLifeform or (not player:GetHasUpgrade(desiredUpgradeTechId)) then
+                  local desiredUpgradeTechNode = techTree:GetTechNode(desiredUpgradeTechId)
+                  if desiredUpgradeTechNode ~= nil then
+                      local isAvailable = desiredUpgradeTechNode:GetAvailable()
                       if isAvailable then
-                          if LookupTechData(techId, kTechDataGestateName) then
-                              cost = GetCostForTech(techId)
-                              evolvingId = techId
-                          else
-                              cost = LookupTechData(techId, kTechDataUpgradeCost, 0)
-                          end
+                         local cost = LookupTechData(desiredUpgradeTechId, kTechDataUpgradeCost, 0)
+                         if res >= cost then
+                            res = res - cost
+                            table.insert(pendingUpgrades, desiredUpgradeTechId)
+                         end
                       end
                   end
-                  
-                  local es = TechIdToString(techId)
-                  local hasUpgrade = player:GetHasUpgrade(techId)
-                  local upgradeAllowed1 = GetIsUpgradeAllowed(player, techId, existingUpgrades)
-                  local upgradeAllowed2 = GetIsUpgradeAllowed(player, techId, desiredUpgrades)
---                  Print(string.format("%s: hasUpgrade = %s, isAvailable = %s, allowed to existings = %s, allowed to desired = %s, res = %d, cost = %d", 
---                    es, BoolToStr(hasUpgrade), BoolToStr(isAvailable),
---                    BoolToStr(upgradeAllowed1), BoolToStr(upgradeAllowed2),
---                    res, cost
---                  ))
-                  
-                  if (not hasUpgrade) and isAvailable and res - cost > 0 and
-                          upgradeAllowed1 and -- WTF?
-                          upgradeAllowed2 then
-                      res = res - cost
-                      table.insert(desiredUpgrades, techId)
-                  end
-               end
+                end
+              end
+  
             end
-            
-            if #desiredUpgrades > 0 then
+            if #pendingUpgrades > 0 then
                 weight = 100.0
-            end                                
+            end
         end
         return { name = name, weight = weight,
             perform = function(move)
-                if player.lifeformEvolution == kTechId.Gorge then
+                if pendingLifeform == kTechId.Gorge then
                   -- DebugPrint("is gorge")
                   local team = player:GetTeam()
                   local teamNumber = player:GetTeamNumber()
@@ -389,15 +376,15 @@ kSkulkBrainActions =
                   --DebugPrint("gorgeCount = %d", gorgeCount)
                   if (gorgeCount >= maxGorgeCount) then
                     DebugPrint("Gorge evolution cancelled")
-                    player.lifeformEvolution = nil
-                    desiredUpgrades = {}
+                    pendingLifeform = nil
+                    pendingUpgrades = {}
                   end
                 end
 
-                if (player.lifeformEvolution) then
+                if (pendingLifeform) then
                   DebugPrint("%s - PROCESS BUY ACTION", EntityToString(player))
---                  PrintUpgrades(desiredUpgrades)
-                  player:ProcessBuyAction( desiredUpgrades )
+                  PrintUpgrades(pendingUpgrades)
+                  player:ProcessBuyAction(pendingUpgrades)
                 end
                 return
             end }

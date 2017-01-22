@@ -6,20 +6,6 @@ Script.Load("lua/bots/BrainSenses.lua")
 Script.Load("lua/bots/TeamBrain.lua")
 Script.Load("lua/bots/BotAim.lua")
 
-local kUpgrades = {
-    kTechId.Crush,
-    kTechId.Carapace,
-    kTechId.Regeneration,
-    
-    kTechId.Vampirism,
-    kTechId.Aura,
-    kTechId.Focus,
-    
-    kTechId.Silence,
-    kTechId.Celerity,
-    kTechId.Adrenaline,
-}
-
 ------------------------------------------
 --  More urgent == should really attack it ASAP
 ------------------------------------------
@@ -178,63 +164,6 @@ kOnosBrainActions =
         local now = Shared.GetTime()        
         local player = bot:GetPlayer()
         local desiredUpgrades = {}
-        if (bot.nextCheckEvolveTime == nil) or (bot.nextCheckEvolveTime > now) then
-          bot.nextCheckEvolveTime = now + 3
-          local player = bot:GetPlayer()
-          local s = brain:GetSenses()
-          local res = player:GetPersonalResources()
-  
-          local distanceToNearestThreat = s:Get("nearestThreat").distance
-  
-          if player:GetIsAllowedToBuy() and
-             (distanceToNearestThreat == nil or distanceToNearestThreat > 20)
-             and (not EntityIsVisible(player)) 
-             and (player.GetIsInCombat == nil or not player:GetIsInCombat()) then
-  
-              -- Safe enough to try to evolve
-  
-              local existingUpgrades = player:GetUpgrades()
-  
-              local avaibleUpgrades = player.lifeformUpgrades
-  
-              if not avaibleUpgrades then
-                  avaibleUpgrades = {}
-  
-                  for i = 0, 2 do
-                      table.insert(avaibleUpgrades, kUpgrades[math.random(1,3) + i * 3])
-                  end
-  
-                  if player.lifeformEvolution then
-                      table.insert(avaibleUpgrades, player.lifeformEvolution)
-                  end
-  
-                  player.lifeformUpgrades = avaibleUpgrades
-              end
-  
-              for i = 1, #avaibleUpgrades do
-                  local techId = avaibleUpgrades[i]
-                  local techNode = player:GetTechTree():GetTechNode(techId)
-  
-                  local isAvailable = false
-                  local cost = 0
-                  if techNode ~= nil then
-                      isAvailable = techNode:GetAvailable(player, techId, false)
-                      cost = LookupTechData(techId, kTechDataGestateName) and GetCostForTech(techId) or LookupTechData(kTechId.Onos, kTechDataUpgradeCost, 0)
-                  end
-  
-                  if not player:GetHasUpgrade(techId) and isAvailable and res - cost > 0 and
-                          GetIsUpgradeAllowed(player, techId, existingUpgrades) and
-                          GetIsUpgradeAllowed(player, techId, desiredUpgrades) then
-                      res = res - cost
-                      table.insert(desiredUpgrades, techId)
-                  end
-              end
-  
-              if  #desiredUpgrades > 0 then
-                  weight = 100.0
-              end
-          end
-        end
 
         return { name = name, weight = weight,
             perform = function(move)
