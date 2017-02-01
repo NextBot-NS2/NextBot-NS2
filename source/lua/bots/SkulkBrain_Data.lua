@@ -53,13 +53,13 @@ local function GetAttackUrgency(bot, mem)
             return 0.55
         else
             return 0
-        end    
+        end
     end
         
     local immediateThreats = {
         [kMinimapBlipType.Marine] = true,
         [kMinimapBlipType.JetpackMarine] = true,
-        [kMinimapBlipType.Exo] = true,    
+        [kMinimapBlipType.Exo] = true,
         [kMinimapBlipType.Sentry] = true
     }
     
@@ -124,19 +124,19 @@ local function PerformAttackEntity( eyePos, bestTarget, bot, brain, move )
 --    Print(">>>>>>>>> 3 "..(((player.timeOfLeap or 0) + kLeapTime < now) and "1" or "0"))
 --    bot:PrintToChat(string.format("IsTech: %d, IsLeaping: %d, IsNow: %d",
 --      GetTechTree(player:GetTeamNumber()):GetHasTech(kTechId.Leap) and 1 or 0,
---      player:GetIsLeaping() and 1 or 0, 
+--      player:GetIsLeaping() and 1 or 0,
 --      ((player.timeOfLeap or 0) + kLeapTime < now) and 1 or 0))
     if (distance > 2.5) and (distance < 10)
       and (player:GetEnergy() > weapon:GetSecondaryEnergyCost())
--- not working !!! 
+-- not working !!!
 --      and GetTechTree(player:GetTeamNumber()):GetHasTech(kTechId.Leap)
-      then 
+      then
         if (not player:GetIsLeaping())
           and ((player.timeOfLeap or 0) + kLeapTime < now) then
             move.commands = AddMoveCommand(move.commands, Move.SecondaryAttack)
         end
     end
-    -- good for bite 
+    -- good for bite
     if (distance < 2.5) then
       if (not weapon.primaryAttacking) then
         if not isBite then
@@ -159,11 +159,11 @@ local function PerformAttackEntity( eyePos, bestTarget, bot, brain, move )
         move.commands = AddMoveCommand( move.commands, Move.PrimaryAttack )
       end
     -- good for parasite
-    elseif 
+    elseif
       (not player.isHallucination)
-      and (distance < 100) 
-      and (Shared.GetTime() > brain.nextAttackTime) 
-      and (player:GetEnergy() > weapon:GetSecondaryEnergyCost() + weapon:GetEnergyCost()) -- 30 for parasite, 45 - save for leap 
+      and (distance < 100)
+      and (Shared.GetTime() > brain.nextAttackTime)
+      and (player:GetEnergy() > weapon:GetSecondaryEnergyCost() + weapon:GetEnergyCost()) -- 30 for parasite, 45 - save for leap
       and GetBotCanSeeTarget(player, bestTarget) then
         if (not weapon.primaryAttacking) then
           if not isParasite then
@@ -175,8 +175,8 @@ local function PerformAttackEntity( eyePos, bestTarget, bot, brain, move )
               bot:GetMotion():SetDesiredViewTarget( nil )
             end
           end
-        end   
-    -- other cases     
+        end
+    -- other cases
     else
         targetPoint = nil
 --        motion:SetDesiredViewTarget(nil)
@@ -188,8 +188,8 @@ local function PerformAttackEntity( eyePos, bestTarget, bot, brain, move )
                 -- When approaching, try to jump sideways
                 player.timeOfJump = Shared.GetTime()
                 player.jumpOffset = nil
-            end    
-        end        
+            end
+        end
     end
     motion:SetDesiredViewTarget(targetPoint)
     
@@ -198,18 +198,18 @@ local function PerformAttackEntity( eyePos, bestTarget, bot, brain, move )
         if player.jumpOffset == nil then
             
             local botToTarget = GetNormalizedVectorXZ(marinePos - eyePos)
-            local sideVector = botToTarget:CrossProduct(Vector(0, 1, 0))                
+            local sideVector = botToTarget:CrossProduct(Vector(0, 1, 0))
             if math.random() < 0.5 then
                 player.jumpOffset = botToTarget + sideVector
             else
                 player.jumpOffset = botToTarget - sideVector
-            end            
+            end
             motion:SetDesiredViewTarget( bestTarget:GetEngagementPoint() )
             
         end
         
         motion:SetDesiredMoveDirection( player.jumpOffset )
-    end    
+    end
     
 end
 
@@ -244,19 +244,19 @@ kSkulkBrainActions =
 {
     
     ------------------------------------------
-    --  
+    --
     ------------------------------------------
     function(bot, brain)
         return { name = "debug idle", weight = 0.001,
                 perform = function(move)
                     bot:GetMotion():SetDesiredMoveTarget(nil)
                     -- there is nothing obvious to do.. figure something out
-                    -- like go to the marines, or defend 
+                    -- like go to the marines, or defend
                 end }
     end,
 
     ------------------------------------------
-    --  
+    --
     ------------------------------------------
     CreateExploreAction( 0.01, function(pos, targetPos, bot, brain, move)
                 bot:GetMotion():SetDesiredMoveTarget(targetPos)
@@ -264,26 +264,23 @@ kSkulkBrainActions =
                 end ),
     
     ------------------------------------------
-    --  
+    --
     ------------------------------------------
     function(bot, brain)
-        local name = "evolve"
+	    local name = "evolve"
 
         local weight = 0.0
-        local now = Shared.GetTime()        
+        local now = Shared.GetTime()
         local pendingUpgrades = {}
         local player = bot:GetPlayer()
         local pendingLifeform
-        
         if (player:GetIsAllowedToBuy())
-        and ((bot.nextCheckEvolveTime == nil) or (bot.nextCheckEvolveTime > now)) then
-            Print("CHECK")
+        and ((bot.nextCheckEvolveTime == nil) or (now > bot.nextCheckEvolveTime)) then
           bot.nextCheckEvolveTime = now + 3
           
           if not player.desiredLifeform then
             local pick = math.random(1, #kEvolutions)
             player.desiredLifeform = kEvolutions[pick]
-              PrintToChat(player, false, "DESIRED LIFEFORM: "..TechIdToString(player.desiredLifeform))
           end
   
   --        local ginfo = GetGameInfoEntity()
@@ -297,11 +294,11 @@ kSkulkBrainActions =
           local hiveDist = hive and player:GetOrigin():GetDistance(hive:GetOrigin()) or 0
   
           if (distanceToNearestThreat == nil or distanceToNearestThreat > 30)
-             and (not EntityIsVisible(player)) 
+             and (not EntityIsVisible(player))
              and (player.GetIsInCombat == nil or not player:GetIsInCombat())
              and (hiveDist < 20) then
               
-              -- Safe enough to try to evolve            
+              -- Safe enough to try to evolve
               
               local res = player:GetPersonalResources()
               
@@ -312,7 +309,7 @@ kSkulkBrainActions =
               local pendingEvolveToLifeform = false
               
               if LookupTechData(desiredLifeform, kTechDataGestateName) then
-                 local cost = GetCostForTech(desiredLifeform)  
+                 local cost = GetCostForTech(desiredLifeform)
                  if res >= cost then
                     res = res - cost
                     table.insert(pendingUpgrades, desiredLifeform)
@@ -321,13 +318,13 @@ kSkulkBrainActions =
                     -- force choice upgrades for desired lifeform
                     -- Print("force choice upgrades for desired lifeform")
                     -- player.desiredUpgrades = GetAlienRandomUpgrades()
-                 end                              
+                 end
               end
               
               if not player.desiredUpgrades then
 --                Print("create desired upgrades for player"..player)
                 player.desiredUpgrades = GetAlienRandomUpgrades(nil)
-                  PrintToChat(player, false, "DESIRED UPGRADES: "..UpgradesToString(player.desiredUpgrades))
+--                  PrintToChat(player, false, "DESIRED UPGRADES: "..UpgradesToString(player.desiredUpgrades))
               end
 
               local techTree = player:GetTechTree()
@@ -381,7 +378,7 @@ kSkulkBrainActions =
                 if (#pendingUpgrades > 0) then
                   -- DebugPrint("%s - PROCESS BUY ACTION", EntityToString(player))
                   --PrintUpgrades(pendingUpgrades)
-                  PrintToChat(player, false, string.format("%s - PROCESS BUY ACTION %s", EntityToString(player), UpgradesToString(pendingUpgrades)))
+--                  PrintToChat(player, false, string.format("%s - PROCESS BUY ACTION %s", EntityToString(player), UpgradesToString(pendingUpgrades)))
                   player:ProcessBuyAction(pendingUpgrades)
                 end
                 return
@@ -418,7 +415,7 @@ kSkulkBrainActions =
     end,
 
     ------------------------------------------
-    --  
+    --
     ------------------------------------------
     function(bot, brain)
         local name = "attack"
@@ -426,7 +423,7 @@ kSkulkBrainActions =
         local eyePos = skulk:GetEyePos()
         
         local memories = GetTeamMemories(skulk:GetTeamNumber())
-        local bestUrgency, bestMem = GetMaxTableEntry( memories, 
+        local bestUrgency, bestMem = GetMaxTableEntry( memories,
                 function( mem )
                     return GetAttackUrgency( bot, mem )
                 end)
@@ -461,10 +458,10 @@ kSkulkBrainActions =
             perform = function(move)
                 PerformAttack( eyePos, bestMem, bot, brain, move )
             end }
-    end,    
+    end,
 
     ------------------------------------------
-    --  
+    --
     ------------------------------------------
     function(bot, brain)
         local name = "pheromone"
@@ -472,7 +469,7 @@ kSkulkBrainActions =
         local skulk = bot:GetPlayer()
         local eyePos = skulk:GetEyePos()
 
-        local pheromones = EntityListToTable(Shared.GetEntitiesWithClassname("Pheromone"))            
+        local pheromones = EntityListToTable(Shared.GetEntitiesWithClassname("Pheromone"))
         local bestPheromoneLocation = nil
         local bestValue = 0
         
@@ -498,9 +495,9 @@ kSkulkBrainActions =
                                         
                         if not currentPheromone.visitedBy[bot] then
                         
-                            if distance < 5 then 
+                            if distance < 5 then
                                 currentPheromone.visitedBy[bot] = true
-                            else   
+                            else
             
                                 -- Value goes from 5 to 10
                                 local value = 5.0 + 5.0 / math.max(distance, 1.0) - #(currentPheromone.visitedBy)
@@ -510,9 +507,9 @@ kSkulkBrainActions =
                                     bestValue = value
                                 end
                                 
-                            end    
+                            end
                             
-                        end    
+                        end
                             
                     end
                     
@@ -535,7 +532,7 @@ kSkulkBrainActions =
     end,
 
     ------------------------------------------
-    --  
+    --
     ------------------------------------------
     function(bot, brain)
         local name = "order"
@@ -570,12 +567,12 @@ kSkulkBrainActions =
                     end
                 end
             end }
-    end,    
+    end,
 
 }
 
 ------------------------------------------
---  
+--
 ------------------------------------------
 function CreateSkulkBrainSenses()
 
@@ -587,17 +584,17 @@ function CreateSkulkBrainSenses()
             local team = player:GetTeamNumber()
             local memories = GetTeamMemories( team )
             return FilterTableEntries( memories,
-                function( mem )                    
+                function( mem )
                     local ent = Shared.GetEntity( mem.entId )
                     
                     if ent:isa("Player") or ent:isa("Sentry") then
                         local isAlive = HasMixin(ent, "Live") and ent:GetIsAlive()
-                        local isEnemy = HasMixin(ent, "Team") and ent:GetTeamNumber() ~= team                    
+                        local isEnemy = HasMixin(ent, "Team") and ent:GetTeamNumber() ~= team
                         return isAlive and isEnemy
                     else
                         return false
                     end
-                end)                
+                end)
         end)
         
     s:Add("nearestThreat", function(db)

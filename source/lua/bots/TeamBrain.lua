@@ -246,26 +246,27 @@ function TeamBrain:Update(dt)
 
     local updateEntities = {}
     
-    local team = GetGamerules():GetTeam(self.teamNumber)
-    assert(team)
-
-    local function count(player)
-        local client = player:GetClient()
-        if client and (player:GetTeamNumber() == self.teamNumber) and player:GetIsAlive() then
-          local targetEntities = GetPotentialTargetEntities(player)
-          for index = 1, #targetEntities do
-            local entity = targetEntities[index]
-            local entityId = entity:GetId()
-            updateEntities[entityId] = entity
-          end        
-        end
-    end
-    
-    team:ForEachPlayer(count)
-    
-    for entityid, entity in pairs(updateEntities) do
-      self:UpdateMemoryOfEntity(entity)
-    end
+-- скорее всего, это не нужно
+--    local team = GetGamerules():GetTeam(self.teamNumber)
+--    assert(team)
+--
+--    local function count(player)
+--        local client = player:GetClient()
+--        if client and (player:GetTeamNumber() == self.teamNumber) and player:GetIsAlive() then
+--          local targetEntities = GetPotentialTargetEntities(player)
+--          for index = 1, #targetEntities do
+--            local entity = targetEntities[index]
+--            local entityId = entity:GetId()
+--            updateEntities[entityId] = entity
+--          end
+--        end
+--    end
+--
+--    team:ForEachPlayer(count)
+--
+--    for entityid, entity in pairs(updateEntities) do
+--      self:UpdateMemoryOfEntity(entity)
+--    end
 
     -- remove entId2memory that no longer exist
     -- NOTE: This is technically cheating a little, ie. letting us know instantly when things no longer exist
@@ -418,8 +419,11 @@ end
 
 function TeamBrain:GetNumAssignedToEntity( entId, countsFunc )
 
-    if not self.entId2memory[entId] then return end
-    return self.assignments:GetNumAssignedTo( entId, countsFunc )
+    if not self.entId2memory[entId] then
+        return 0
+    else
+        return self.assignments:GetNumAssignedTo( entId, countsFunc )
+    end
 
 end
 

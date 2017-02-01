@@ -159,12 +159,14 @@ function CreateEvolveAction()
 		if not player.desiredUpgrades then
 			--                Print("create desired upgrades for player"..player)
 			player.desiredUpgrades = GetAlienRandomUpgrades(existingUpgrades)
-			PrintToChat(player, false, "DESIRED UPGRADES: " .. UpgradesToString(player.desiredUpgrades))
+--			PrintToChat(player, false, "DESIRED UPGRADES: " .. UpgradesToString(player.desiredUpgrades))
 		end
 		
+--		Print(string.format("desired: %d, existing: %d, allowed: %s", #player.desiredUpgrades, #existingUpgrades, player:GetIsAllowedToBuy()))
+	
 		if (#player.desiredUpgrades ~= #existingUpgrades) and (player:GetIsAllowedToBuy())
-				and ((bot.nextCheckEvolveTime == nil) or (bot.nextCheckEvolveTime > now)) then
-			
+				and ((bot.nextCheckEvolveTime == nil) or (now > bot.nextCheckEvolveTime)) then
+		
 			bot.nextCheckEvolveTime = now + 3
 			
 			local s = brain:GetSenses()
@@ -209,7 +211,7 @@ function CreateEvolveAction()
 			weight = weight,
 			perform = function(move)
 				if (#pendingUpgrades > 0) then
-					PrintToChat(player, false, string.format("%s - PROCESS BUY ACTION %s", EntityToString(player), UpgradesToString(pendingUpgrades)))
+--					PrintToChat(player, false, string.format("%s - PROCESS BUY ACTION %s", EntityToString(player), UpgradesToString(pendingUpgrades)))
 					player:ProcessBuyAction(pendingUpgrades)
 				end
 				return
