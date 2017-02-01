@@ -284,9 +284,9 @@ function GUIMainMenu:Initialize()
                 obj.score = obj.score or 0
 				
                 Analytics.RecordLaunch( steamId, obj.level, obj.score, obj.time_played )
-				if obj.badges then
-				    Badges_FetchBadges(0, obj.badges)
-				end
+                if obj.badges then
+                    Badges_FetchBadges(nil , obj.badges)
+                end
 
                 if gMainMenu then
                     gMainMenu.playerSkill = obj.skill
