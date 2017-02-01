@@ -373,7 +373,7 @@ function GUIMainMenu:CreateMainLink(text, linkNum, OnClick)
     if text == "MENU_TRAINING" then
         
         -- only display if they haven't done both of the new tutorials.
-        if not Client.GetAchievement('First_0_8') then
+        if not Client.GetAchievement('First_0_9') then
             mainLink:SetTextColor(kMainMenuLinkTextGlowColor)
             mainLink:SetTopOffset(50 + 70 * linkNum)
             mainLink:SetBackgroundColor(Color(1,1,1,0))

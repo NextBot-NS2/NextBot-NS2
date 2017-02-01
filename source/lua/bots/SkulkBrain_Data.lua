@@ -32,12 +32,6 @@ local kEvolutions = {
 
 local kLeapTime = 0.2
 
-local function PrintUpgrades(upgrades)
-  for i = 1, #upgrades do
-    Print(TechIdToString(upgrades[i]))
-  end
-end
-
 ------------------------------------------
 --  More urgent == should really attack it ASAP
 ------------------------------------------
@@ -184,7 +178,8 @@ local function PerformAttackEntity( eyePos, bestTarget, bot, brain, move )
         end   
     -- other cases     
     else
-        motion:SetDesiredViewTarget(nil)
+        targetPoint = nil
+--        motion:SetDesiredViewTarget(nil)
 
         -- Occasionally jump
         if math.random() < 0.1 and (player:GetIsOnGround() or player.wallWalking) then
@@ -278,16 +273,17 @@ kSkulkBrainActions =
         local now = Shared.GetTime()        
         local pendingUpgrades = {}
         local player = bot:GetPlayer()
-        local pendingLifeform = nil
+        local pendingLifeform
         
         if (player:GetIsAllowedToBuy())
         and ((bot.nextCheckEvolveTime == nil) or (bot.nextCheckEvolveTime > now)) then
-
+            Print("CHECK")
           bot.nextCheckEvolveTime = now + 3
           
           if not player.desiredLifeform then
             local pick = math.random(1, #kEvolutions)
             player.desiredLifeform = kEvolutions[pick]
+              PrintToChat(player, false, "DESIRED LIFEFORM: "..TechIdToString(player.desiredLifeform))
           end
   
   --        local ginfo = GetGameInfoEntity()
@@ -330,12 +326,13 @@ kSkulkBrainActions =
               
               if not player.desiredUpgrades then
 --                Print("create desired upgrades for player"..player)
-                player.desiredUpgrades = GetAlienRandomUpgrades()
+                player.desiredUpgrades = GetAlienRandomUpgrades(nil)
+                  PrintToChat(player, false, "DESIRED UPGRADES: "..UpgradesToString(player.desiredUpgrades))
               end
 
               local techTree = player:GetTechTree()
               for _, desiredUpgradeTechId in ipairs(player.desiredUpgrades) do
-                Print("Has Upgrade "..TechIdToString(desiredUpgradeTechId).." = "..BoolToStr(player:GetHasUpgrade(desiredUpgradeTechId)))
+                -- Print("Has Upgrade "..TechIdToString(desiredUpgradeTechId).." = "..BoolToStr(player:GetHasUpgrade(desiredUpgradeTechId)))
                 if pendingEvolveToLifeform or (not player:GetHasUpgrade(desiredUpgradeTechId)) then
                   local desiredUpgradeTechNode = techTree:GetTechNode(desiredUpgradeTechId)
                   if desiredUpgradeTechNode ~= nil then
@@ -381,9 +378,10 @@ kSkulkBrainActions =
                   end
                 end
 
-                if (pendingLifeform) then
-                  DebugPrint("%s - PROCESS BUY ACTION", EntityToString(player))
-                  PrintUpgrades(pendingUpgrades)
+                if (#pendingUpgrades > 0) then
+                  -- DebugPrint("%s - PROCESS BUY ACTION", EntityToString(player))
+                  --PrintUpgrades(pendingUpgrades)
+                  PrintToChat(player, false, string.format("%s - PROCESS BUY ACTION %s", EntityToString(player), UpgradesToString(pendingUpgrades)))
                   player:ProcessBuyAction(pendingUpgrades)
                 end
                 return

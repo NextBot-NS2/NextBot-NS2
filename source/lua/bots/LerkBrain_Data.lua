@@ -187,21 +187,7 @@ kLerkBrainActions =
     ------------------------------------------
     --
     ------------------------------------------
-    function(bot, brain)
-      local name = "evolve"
-
-      local weight = 0.0
-      local player = bot:GetPlayer()
-      local desiredUpgrades = {}
-      local now = Shared.GetTime()        
-
-      return { name = name, weight = weight,
-        perform = function(move)
-          player:ProcessBuyAction( desiredUpgrades )
-        end }
-
-    end,
-
+    CreateEvolveAction(),
     ------------------------------------------
     --
     ------------------------------------------
@@ -258,7 +244,7 @@ kLerkBrainActions =
       local eyePos = skulk:GetEyePos()
 
       local pheromones = EntityListToTable(Shared.GetEntitiesWithClassname("Pheromone"))
-      local bestPheromoneLocation = nil
+      local bestPheromoneLocation
       local bestValue = 0
 
       for p = 1, #pheromones do
