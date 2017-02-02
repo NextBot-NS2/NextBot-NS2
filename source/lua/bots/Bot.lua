@@ -7,8 +7,6 @@
 --
 --=============================================================================
 
-Print("============== INITIALIZING NEXTBOT REV 6 (2016-12-28) ==============")
-
 if (not Server) then
     error("Bot.lua should only be included on the Server")
 end
@@ -311,18 +309,4 @@ Event.Hook("VirtualClientThink",    OnVirtualClientThink)
 -- for one of the virtual clients
 Event.Hook("VirtualClientMove",     OnVirtualClientMove)
 
-Print("| command examples:")
-Print("| addbot 3")
-Print("|     - add 3 auto team assign bots")
-Print("| addbot 1 2")
-Print("|     - add 1 alien player bot")
-Print("| addbot 1 1 com")
-Print("|     - add 1 marine commander bot")
-Print("| botmaxteam 4")
-Print("|     - add 1 com + 3 player bots for both teams")
-Print("| removebot 1 2")
-Print("|     - remove 1 alien bot")
-Print("|")
-Print("Created by Sepulka (nextbot.ns2@gmail.com, https://trello.com/b/k638QFsf/roadmap)")
-Print("Based on original NS2 bots, created by McGuire (max@unknownworlds.com), Mats olsson (mats.olsson@matsotech.se), Steven An (steve@unknownworlds.com), Charlie Cleveland (charlie@unknownworlds.com)")
-Print("====================== NEXTBOT INITIALIZED ======================")
+Print("NextBot 313.2 beta 1 (2017-02-02) loaded")
