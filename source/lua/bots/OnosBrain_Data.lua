@@ -324,7 +324,7 @@ kOnosBrainActions =
         local healthFraction = sdb:Get("healthFraction")
         local weight = 0.0
 
-        if (not EntityIsVisible(player)) and (hiveDist < 4) and (healthFraction < 0.9) then
+        if (not EntitySighted(player)) and (hiveDist < 4) and (healthFraction < 0.9) then
           -- standing for full repair
           weight = 25.0
         else

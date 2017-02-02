@@ -1,4 +1,5 @@
 
+Script.Load("lua/Utility.lua")
 Script.Load("lua/bots/BotUtils.lua")
 
 if Server then
@@ -146,5 +147,5 @@ Event.Hook("Console_nb_hotload", function()
         Script.Load("lua/bots/AlienCommanderBrain_Data.lua", true)
         -- TODO team brain, etc.
         end)
-
+    
 end

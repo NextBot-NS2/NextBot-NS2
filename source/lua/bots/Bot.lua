@@ -119,6 +119,14 @@ function Bot:OnThink()
     
 end
 
+function Bot:DebugPrint(formatString, ...)
+    local player = self:GetPlayer()
+    if player then
+        formatString = player:GetName() .. ": " .. formatString
+    end
+    DebugPrint(formatString, ...)
+end
+
 
 ------------------------------------------
 --  Console commands for managing bots

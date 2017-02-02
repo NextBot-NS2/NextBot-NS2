@@ -56,7 +56,7 @@ local function UpdateMemory(mem, ent, fromSound)
 
     -- this works as long as this is run as part of the server, as we will always have full
     -- information about entities.
-    if ent ~= nil and ent.GetMapBlipInfo and (fromSound or EntityIsVisible(ent)) then
+    if ent ~= nil and ent.GetMapBlipInfo and (fromSound or EntitySighted(ent)) then
         local success, blipType, blipTeam, isAttacked, isParasited = ent:GetMapBlipInfo()
         mem.btype = blipType
         mem.lastSeenPos = ent:GetOrigin()
@@ -463,12 +463,12 @@ end
 
 function TeamBrain:DebugDump()
 
-    function Group2String(memEntId)
+    local function Group2String(memEntId)
         local mem = self.entId2memory[memEntId]
         return MemoryToString(mem)
     end
 
-    function Item2String(playerId)
+    local function Item2String(playerId)
         local player = Shared.GetEntity(playerId)
         assert( player ~= nil )
         return player:GetName()

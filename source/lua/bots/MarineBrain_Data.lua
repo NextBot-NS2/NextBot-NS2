@@ -114,7 +114,7 @@ local function PerformAttackEntity( eyePos, target, lastSeenPos, bot, brain, mov
 --    return
 --  end
 
-  local sighted = EntityIsVisible(target)
+  local sighted = EntitySighted(target)
   local aimPos = sighted and GetBestAimPoint( target ) or lastSeenPos
   local dist = GetDistanceToTouch( eyePos, target )
   local doFire = false
@@ -928,7 +928,7 @@ local function GetAttackUrgency(bot, mem)
   --  Active threats - ie. they can hurt you
   --  Only load balance if we cannot see the target
   ------------------------------------------
-  function EvalActiveUrgenciesTable(numOthers)
+  local function EvalActiveUrgenciesTable(numOthers)
     local activeUrgencies =
       {
         [kMinimapBlipType.Embryo] = numOthers >= 1 and 0.1 or 1.0,
@@ -1103,7 +1103,7 @@ function CreateMarineBrainSenses()
       local cysts = GetEntitiesWithinRange("Cyst", marinePos, 20)
 
       local dist, cyst = GetMinTableEntry( cysts, function(cyst)
-        if EntityIsVisible(cyst) then
+        if EntitySighted(cyst) then
           return marinePos:GetDistance( cyst:GetOrigin() )
         end
         return nil

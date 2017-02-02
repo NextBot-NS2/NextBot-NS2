@@ -156,15 +156,17 @@ function CreateEvolveAction()
 		local pendingLifeform
 		local existingUpgrades = player:GetUpgrades()
 		
-		if not player.desiredUpgrades then
+		if not bot.desiredUpgrades then
 			--                Print("create desired upgrades for player"..player)
-			player.desiredUpgrades = GetAlienRandomUpgrades(existingUpgrades)
---			PrintToChat(player, false, "DESIRED UPGRADES: " .. UpgradesToString(player.desiredUpgrades))
+			bot.desiredUpgrades = GetAlienRandomUpgrades(existingUpgrades)
+			if brain.debug then
+				bot:DebugPrint("DESIRED UPGRADES: %s", UpgradesToString(player.desiredUpgrades))
+			end
 		end
 		
 --		Print(string.format("desired: %d, existing: %d, allowed: %s", #player.desiredUpgrades, #existingUpgrades, player:GetIsAllowedToBuy()))
 	
-		if (#player.desiredUpgrades ~= #existingUpgrades) and (player:GetIsAllowedToBuy())
+		if (#bot.desiredUpgrades ~= #existingUpgrades) and (player:GetIsAllowedToBuy())
 				and ((bot.nextCheckEvolveTime == nil) or (now > bot.nextCheckEvolveTime)) then
 		
 			bot.nextCheckEvolveTime = now + 3
@@ -174,9 +176,11 @@ function CreateEvolveAction()
 			local distanceToNearestThreat = s:Get("nearestThreat").distance
 			
 			local treatTooFar = (distanceToNearestThreat == nil) or (distanceToNearestThreat > 20)
-			local entitySighted = EntityIsVisible(player)
+			local entitySighted = EntitySighted(player)
 			local notInCombat = (player.GetIsInCombat == nil) or (not player:GetIsInCombat())
-			Print(string.format('treatTooFar = %s, EntityIsVisible = %s, noInCombat: %s', BoolToStr(treatTooFar), BoolToStr(entitySighted), BoolToStr(notInCombat)))
+			if brain.debug then
+				bot:DebugPrint("treatTooFar = %s, EntityIsVisible = %s, noInCombat: %s", BoolToStr(treatTooFar), BoolToStr(entitySighted), BoolToStr(notInCombat))
+			end
 			if (treatTooFar)
 					and (not entitySighted)
 					and (notInCombat) then
@@ -185,7 +189,7 @@ function CreateEvolveAction()
 				
 				local res = player:GetPersonalResources()
 				local techTree = player:GetTechTree()
-				for _, desiredUpgradeTechId in ipairs(player.desiredUpgrades) do
+				for _, desiredUpgradeTechId in ipairs(bot.desiredUpgrades) do
 					-- Print("Has Upgrade "..TechIdToString(desiredUpgradeTechId).." = "..BoolToStr(player:GetHasUpgrade(desiredUpgradeTechId)))
 					if not player:GetHasUpgrade(desiredUpgradeTechId) then
 						local desiredUpgradeTechNode = techTree:GetTechNode(desiredUpgradeTechId)
@@ -211,7 +215,9 @@ function CreateEvolveAction()
 			weight = weight,
 			perform = function(move)
 				if (#pendingUpgrades > 0) then
---					PrintToChat(player, false, string.format("%s - PROCESS BUY ACTION %s", EntityToString(player), UpgradesToString(pendingUpgrades)))
+					if brain.debug then
+						bot:DebugPrint("PROCESS BUY ACTION %s", UpgradesToString(pendingUpgrades))
+					end
 					player:ProcessBuyAction(pendingUpgrades)
 				end
 				return

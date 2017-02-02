@@ -1,7 +1,7 @@
 ------------------------------------------
 -- Collection of useful, bot-specific utility functions
 ------------------------------------------
-function EntityIsVisible(entity)
+function EntitySighted(entity)
 	--  if entity:GetIsVisible() then
 	--    return not HasMixin(entity, "Cloakable") or not entity:GetIsCloaked()
 	--  else
@@ -137,7 +137,7 @@ end
 ------------------------------------------
 function FilterTableEntries(ents, filterFunc)
 
-	result = {}
+	local result = {}
 	for key, entry in pairs(ents) do
 		if filterFunc(entry) then
 			table.insert(result, entry)
@@ -251,7 +251,7 @@ function GetPotentialTargetEntities(player)
 
 	local function filterFunction(entity)
 		return HasMixin(entity, "Team") and HasMixin(entity, "LOS") and HasMixin(entity, "Live") and
-				entity:GetTeamNumber() == teamNumber and EntityIsVisible(entity) and entity:GetIsAlive()
+				entity:GetTeamNumber() == teamNumber and EntitySighted(entity) and entity:GetIsAlive()
 	end
 
 	return Shared.GetEntitiesWithTagInRange("class:ScriptActor", origin, range, filterFunction)
@@ -490,23 +490,24 @@ end
 
 --------------------- UPGRADES ----------------------
 
+-- to decomission
 -- copied from AlienUI_GetUpgradesForCategory()
-function GetAvailableUpgradesForHiveTypeId(hiveTypeId)
-	Print("GetAvailableUpgradesForHiveTypeId " .. TechIdToString(hiveTypeId))
-	local upgrades = {}
-	local techTree = GetTechTree(kAlienTeamType)
-	if techTree then
-		for _, upgradeId in ipairs(techTree:GetAddOnsForTechId(kTechId.AllAliens)) do
-			Print("test upgrade " .. TechIdToString(upgradeId) .. " >>> " .. TechIdToString(LookupTechData(upgradeId, kTechDataCategory, kTechId.None)))
-			if LookupTechData(upgradeId, kTechDataCategory, kTechId.None) == hiveTypeId then
-				Print("### available upgrade " .. TechIdToString(upgradeId))
-				table.insert(upgrades, upgradeId)
-			end
-		end
-	end
-	Print("#upgrades = " .. #upgrades)
-	return upgrades
-end
+--function GetAvailableUpgradesForHiveTypeId(hiveTypeId)
+--	Print("GetAvailableUpgradesForHiveTypeId " .. TechIdToString(hiveTypeId))
+--	local upgrades = {}
+--	local techTree = GetTechTree(kAlienTeamType)
+--	if techTree then
+--		for _, upgradeId in ipairs(techTree:GetAddOnsForTechId(kTechId.AllAliens)) do
+--			Print("test upgrade " .. TechIdToString(upgradeId) .. " >>> " .. TechIdToString(LookupTechData(upgradeId, kTechDataCategory, kTechId.None)))
+--			if LookupTechData(upgradeId, kTechDataCategory, kTechId.None) == hiveTypeId then
+--				Print("### available upgrade " .. TechIdToString(upgradeId))
+--				table.insert(upgrades, upgradeId)
+--			end
+--		end
+--	end
+--	Print("#upgrades = " .. #upgrades)
+--	return upgrades
+--end
 
 function UpgradesToString(upgrades)
 	local res = ''
@@ -568,11 +569,11 @@ function GetAlienRandomUpgrades(existingUpgrades)
 	for hiveType, possibleUpgrades in pairs(kAlienAvailableUpgrades) do
 		if existUpgradeHiveTypes[hiveType] == nil then
 			local upgradeCount = #possibleUpgrades
-			Print("upgrade count = "..upgradeCount)
+--			Print("upgrade count = "..upgradeCount)
 			local upgradeIndex = math.random(1, upgradeCount)
-			Print("upgrade index = "..upgradeIndex)
+--			Print("upgrade index = "..upgradeIndex)
 			local desiredUpgrade = possibleUpgrades[upgradeIndex]
-			Print("desiredUpgrade = "..TechIdToString(desiredUpgrade))
+--			Print("desiredUpgrade = "..TechIdToString(desiredUpgrade))
 			table.insert(desiredUpgrades, desiredUpgrade)
 		end
 	end
@@ -582,3 +583,4 @@ end
 function BoolToStr(bool)
 	return bool and "true" or "false"
 end
+
